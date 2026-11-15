@@ -1,6 +1,8 @@
 # Karlsøy 2.0 – prototype
 
-Statisk skisse av brukeropplevelsen i Karlsøy 2.0: utsiden (nettside bygget som en Hypa Poiesis-instans) og innsiden (dashbord, årshjul, Tavla, koordinering).
+Statisk skisse av brukeropplevelsen i Karlsøy 2.0: utsiden (nettside bygget som en Hypa Poiesis-instans) og innsiden (dashbord, årshjul, Tavla, koordinering, meldinger).
+
+Utsiden er bygget rundt programposter og bidragsytere. Innhold som lages rundt en programpost (strøm, opptak, bilder, tekst, avisoppslag) kobles i et forløp. Ordene «verk» og «dialog» fra Hypa Poiesis brukes ikke i grensesnittet; se `DATA.items` og `DATA.threads` i `js/data.js`.
 
 Ren HTML, CSS og JavaScript. Ingen byggesteg, ingen rammeverk, ingen eksterne kall.
 
@@ -38,6 +40,6 @@ Alt innhold ligger i `js/data.js`. Pris, datoer og klokkeslett står én gang i 
 
 Ekte, fra programhefte 2026, håndboka v9.1 og nettsiden: program, steder, kategorier, bidragsytere, manifest, grupper, huskelister, frister, prinsipper og FAQ.
 
-Eksempler: brukerne på innsiden, Tavla-kort, samreise, statuser på bidrag, driftsstatus og medieopptak.
+Eksempler: brukerne på innsiden, meldinger, Tavla-kort, samreise, statuser på bidrag, driftsstatus, medieopptak, avisoppslag og paneldebatt.
 
 Bildene er hentet fra karlsoyfestivalen.no. Fotograf og lisens mangler og bør avklares før prototypen deles åpent. `index.html` har `noindex`, slik at søkemotorer ikke lister siden.

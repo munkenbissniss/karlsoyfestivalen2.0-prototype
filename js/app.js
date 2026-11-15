@@ -3,16 +3,16 @@
 /* ---------- Tilstand ---------- */
 const STORE_KEY = 'karlsoy-proto-v1';
 const STATE = Object.assign(
-  { lang: 'nb', persona: null, fest: true, fav: [], taken: [], group: null },
+  { lang: 'nb', persona: null, fest: true, fav: [], taken: [], group: null, sent: {}, read: {} },
   loadState(),
-  { day: 3, cat: 'all', wMonth: null, wGroup: 'mine', menu: false, sheet: false, subscribed: false }
+  { day: 3, cat: 'all', wMonth: null, wGroup: 'mine', menu: false, sheet: false, subscribed: false, chat: false, chatId: null }
 );
 function loadState() {
   try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; }
 }
 function saveState() {
-  const { lang, persona, fest, fav, taken, group } = STATE;
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ lang, persona, fest, fav, taken, group })); } catch (e) { /* privat modus */ }
+  const { lang, persona, fest, fav, taken, group, sent, read } = STATE;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ lang, persona, fest, fav, taken, group, sent, read })); } catch (e) { /* privat modus */ }
 }
 
 /* ---------- Hjelpere ---------- */
@@ -49,7 +49,7 @@ function route() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   return { a: parts[0] || '', b: parts[1] || '', c: parts[2] || '' };
 }
-const SECTION = { '': 'gul', program: 'rosa', live: 'rosa', verk: 'gronn', dialoger: 'cyan', bidragsytere: 'gul', handbok: 'gul', praktisk: 'gul', om: 'gul' };
+const SECTION = { '': 'gul', program: 'rosa', live: 'rosa', fra: 'gronn', forlop: 'cyan', bidragsytere: 'gul', handbok: 'gul', praktisk: 'gul', om: 'gul' };
 
 function render(keepScroll) {
   const r = route();
@@ -59,12 +59,22 @@ function render(keepScroll) {
   document.body.dataset.section = inside ? 'inn' : (SECTION[r.a] || 'gul');
   document.getElementById('app').innerHTML = inside ? insideShell(r) : outsideShell(r);
   if (!keepScroll) window.scrollTo(0, 0);
+  const msgs = document.querySelector('.chat-msgs');
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 
 /* ====================================================================
-   UTSIDEN – Hypa Poiesis-instans for Karlsøyfestivalen
+   UTSIDEN – nettsiden, bygget som en Hypa Poiesis-instans
+   Menyen bruker hverdagsord. Innholdsstykker («verk») og forløp («dialoger»)
+   er måter å organisere og oppleve innholdet på, ikke menypunkter.
    ==================================================================== */
-const NAV = [['program', 'program'], ['verk', 'works'], ['dialoger', 'dialogues'], ['bidragsytere', 'people'], ['handbok', 'handbook'], ['praktisk', 'practical']];
+const NAV = [['program', 'program'], ['bidragsytere', 'people'], ['fra', 'fromFestival'], ['handbok', 'handbook'], ['praktisk', 'practical']];
+const byId = (list, id) => list.find(x => x.id === id);
+const post = id => byId(DATA.program, id);
+const item = id => byId(DATA.items, id);
+const itemBy = it => (it.who ? DATA.people[it.who].n : it.by);
+const threadsFor = test => DATA.threads.filter(th => th.steps.some(test));
+const whenOf = p => fmt(dayDate(p.day + (p.start && +p.start.slice(0, 2) < 6 ? 1 : 0)), { weekday: 'long' }) + (p.start ? ' ' + p.start : '');
 
 function langSelect() {
   return `<label class="lang"><span class="sr">${t('language')}</span><select data-act="lang" aria-label="${t('language')}">${Object.keys(LANGS).map(k =>
@@ -73,7 +83,7 @@ function langSelect() {
 function ribbon() { return `<a class="ribbon" href="#/om">${t('proto')}</a>`; }
 
 function outsideShell(r) {
-  const pages = { '': pHome, program: pProgram, verk: r.b ? pWork : pWorks, dialoger: r.b ? pDialogue : pDialogues,
+  const pages = { '': pHome, program: r.b ? pPost : pProgram, fra: r.b ? pItem : pFeed, forlop: pThread,
     bidragsytere: r.b ? pPerson : pPeople, handbok: r.b ? pGroup : pHandbook, praktisk: pPractical, live: pLive, om: pAbout };
   const page = (pages[r.a] || pHome)(r);
   const note = t('contentNote');
@@ -105,28 +115,30 @@ function outsideShell(r) {
 
 /* ---------- Forside ---------- */
 function pHome() {
+  const stories = DATA.threads.filter(th => th.kind === 'forlop').slice(0, 3);
   return `
   <section class="hero wrap">
     <div class="hero-text">
       <p class="hero-date">${t('nextFestival')}: <strong>${range(E.next.from, E.next.to)}</strong></p>
       <h1>${t('heroTitle')}</h1>
       <p class="lead">${t('heroLead')}</p>
-      <p class="actions"><a class="btn btn-dark" href="#/program">${t('seeProgram')}</a><a class="btn" href="#/verk/deltaker">${t('howJoin')}</a></p>
+      <p class="actions"><a class="btn btn-dark" href="#/program">${t('seeProgram')}</a><a class="btn" href="#/fra/deltaker">${t('howJoin')}</a></p>
     </div>
     <figure class="hero-img">${img('plassen', 'Festivalplassen på Karlsøya')}<figcaption>${t('thanks')}</figcaption></figure>
   </section>
   ${STATE.fest ? liveBanner() : ''}
   <section class="wrap block">
-    <div class="block-head"><h2>${t('featuredDialogues')}</h2><a href="#/dialoger">${t('allDialogues')}</a></div>
-    <div class="grid grid-3">${DATA.dialogues.slice(0, 3).map(dialogueCard).join('')}</div>
+    <div class="block-head"><h2>${t('latest')}</h2><a href="#/fra">${t('seeAll')}</a></div>
+    <div class="grid grid-4">${DATA.items.slice(0, 4).map(itemCard).join('')}</div>
   </section>
   <section class="wrap block">
-    <div class="block-head"><h2>${t('featuredWorks')}</h2><a href="#/verk">${t('allWorks')}</a></div>
-    <div class="grid grid-4">${DATA.works.slice(0, 4).map(workCard).join('')}</div>
+    <div class="block-head"><h2>${t('stories')}</h2></div>
+    <p class="blocklead">${t('storiesLead')}</p>
+    <div class="grid grid-3">${stories.map(threadCard).join('')}</div>
   </section>
   <section class="manifest"><div class="wrap">
     <h2>${t('manifest')}</h2>
-    ${DATA.works[0].body.map(p => `<p>${esc(p)}</p>`).join('')}
+    ${item('manifest').body.map(p => `<p>${esc(p)}</p>`).join('')}
   </div></section>
   ${newsletter()}`;
 }
@@ -149,14 +161,17 @@ function starBtn(id) {
     <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17.1 6.6 20l1.1-6.1-4.5-4.3 6.1-.8z"/></svg></button>`;
 }
 function progItem(p, opts) {
-  const c = cat(p.cat), who = p.who && DATA.people[p.who];
-  const state = opts && opts.state ? `<span class="tag tag-live">${opts.state}</span>` : '';
+  const c = cat(p.cat), who = p.who && DATA.people[p.who], o = opts || {};
+  const state = o.state ? `<span class="tag tag-live">${o.state}</span>` : '';
+  const title = (o.prefix ? o.prefix + ': ' : '') + p.title;
+  const more = p.id && threadsFor(s => s.post === p.id).length;
   return `<li class="pi">
     <div class="pi-time">${p.start ? `${p.start}<span>${p.end}</span>` : `<span class="allday">${t('allDay')}</span>`}</div>
     <div class="pi-main">
-      <h3>${state}${esc(p.title)}</h3>
+      <h3>${state}${p.id ? `<a href="#/program/${p.id}">${esc(title)}</a>` : esc(title)}</h3>
       <p class="pi-venue">${esc(venue(p.venue))}</p>
       <p class="pi-cat"><span class="dot" style="background:${c.c}"></span>${L(c)}${who ? ` <a href="#/bidragsytere/${p.who}">${esc(who.n)}</a>` : ''}</p>
+      ${more ? `<p class="pi-more">${t('wholeStory')}</p>` : ''}
     </div>
     ${p.id ? starBtn(p.id) : ''}
   </li>`;
@@ -186,55 +201,104 @@ function pProgram() {
   </div>`;
 }
 
-/* ---------- Verk ---------- */
-function workCard(w) {
-  return `<a class="card work" href="#/verk/${w.id}">
-    <div class="card-img">${img(w.img, '')}</div>
-    <div class="card-body"><span class="tag">${L(DATA.workTypes[w.type])}</span><h3>${esc(w.title)}</h3><p>${esc(w.by)}</p><p class="small">${esc(w.date)}, ${esc(w.lic)}</p></div>
+/* ---------- Én programpost: bidragsyter, tid og sted, og hele forløpet ---------- */
+function personBox(k) {
+  const p = DATA.people[k];
+  return `<a class="personbox" href="#/bidragsytere/${k}"><span class="avatar">${esc(p.n[0])}</span><span><strong>${esc(p.n)}</strong><span>${esc(p.b)}</span></span></a>`;
+}
+function pPost(r) {
+  const p = post(r.b) || DATA.program[0], c = cat(p.cat);
+  const ths = threadsFor(s => s.post === p.id);
+  const others = p.who ? DATA.program.filter(x => x.who === p.who && x.id !== p.id) : [];
+  const made = DATA.items.filter(i => i.post === p.id);
+  return `<article class="wrap narrow">
+    <p class="crumb"><a href="#/program">${t('program')}</a></p>
+    <p class="kicker"><span class="dot" style="background:${c.c}"></span>${L(c)}</p>
+    <h1>${esc(p.title)}</h1>
+    <div class="when">
+      <div><strong>${fmt(dayDate(p.day), { weekday: 'long', day: 'numeric', month: 'long' })}</strong><span>${p.start ? p.start + '–' + p.end : t('allDay')}</span></div>
+      <div><strong>${esc(venue(p.venue))}</strong><span>${esc(DATA.venues[p.venue].d)}</span></div>
+      ${starBtn(p.id)}
+    </div>
+    ${p.who ? personBox(p.who) : ''}
+    ${ths.map(th => `<section class="story"><h2>${t('wholeStory')}</h2><p>${esc(th.lead)}</p>${stepsList(th, p.id)}<a class="more" href="#/forlop/${th.id}">${esc(th.title)}</a></section>`).join('')}
+    ${!ths.length && made.length ? `<h2>${t('fromFestival')}</h2><div class="grid grid-2">${made.map(itemCard).join('')}</div>` : ''}
+    ${!ths.length && others.length ? `<h2>${t('moreFrom')} ${esc(DATA.people[p.who].n)}</h2><ul class="plist">${others.map(x => progItem(x, { prefix: fmt(dayDate(x.day), { weekday: 'long' }) })).join('')}</ul>` : ''}
+  </article>`;
+}
+
+/* ---------- Forløp og samlinger ---------- */
+function stepsList(th, currentId) {
+  return `<ol class="steps">${th.steps.map(s => {
+    let when, tag, title, note = s.note || '', href = '', ex = s.ex;
+    if (s.post) { const p = post(s.post); when = whenOf(p); tag = t('programPost'); title = p.title; href = '#/program/' + p.id; note = note || venue(p.venue); }
+    else if (s.item) { const it = item(s.item); when = it.date; tag = L(DATA.itemTypes[it.type]); title = it.title; href = '#/fra/' + it.id; ex = it.mock; note = note || itemBy(it); }
+    else { when = s.when; tag = ''; title = s.t; }
+    const cur = s.post && s.post === currentId;
+    return `<li class="${cur ? 'cur' : ''}${s.item ? ' has-item' : ''}">
+      <p class="step-when">${esc(when)}</p>
+      <h3>${href && !cur ? `<a href="${href}">${esc(title)}</a>` : esc(title)}</h3>
+      <p class="step-note">${tag ? `<span class="tag">${tag}</span> ` : ''}${ex ? `<span class="tag tag-ex">${t('example')}</span> ` : ''}${esc(note)}</p>
+    </li>`; }).join('')}</ol>`;
+}
+function threadCard(th) {
+  return `<a class="card story-card" href="#/forlop/${th.id}">
+    <div class="card-img">${img(th.img, '')}</div>
+    <div class="card-body"><h3>${esc(th.title)}</h3><p>${esc(th.lead)}</p><p class="small">${t('nSteps', { n: th.steps.length })}</p></div></a>`;
+}
+function pThread(r) {
+  const th = byId(DATA.threads, r.b) || DATA.threads[0];
+  const people = [...new Set(th.steps.map(s => (s.post && post(s.post).who) || (s.item && item(s.item).who)).filter(Boolean))];
+  return `<article class="wrap narrow">
+    <p class="crumb"><a href="#/fra">${t('fromFestival')}</a></p>
+    <h1>${esc(th.title)}</h1><p class="lead">${esc(th.lead)}</p>
+    ${people.map(personBox).join('')}
+    ${stepsList(th)}
+  </article>`;
+}
+
+/* ---------- Fra festivalen: innhold som legges ut fortløpende ---------- */
+function itemCard(it) {
+  return `<a class="card item" href="#/fra/${it.id}">
+    <div class="card-img">${img(it.img, '')}${it.type === 'video' || it.type === 'lyd' ? '<span class="play small-play" aria-hidden="true"></span>' : ''}</div>
+    <div class="card-body"><p class="kicker">${L(DATA.itemTypes[it.type])}${it.mock ? ` <span class="tag tag-ex">${t('example')}</span>` : ''}</p><h3>${esc(it.title)}</h3><p class="small">${esc(itemBy(it))}, ${esc(it.date)}</p></div>
   </a>`;
 }
-function pWorks() {
-  return `<div class="wrap"><h1>${t('works')}</h1><div class="grid grid-3">${DATA.works.map(workCard).join('')}</div></div>`;
+function pFeed() {
+  const stories = DATA.threads.filter(th => th.kind === 'forlop'), coll = DATA.threads.filter(th => th.kind === 'samling');
+  return `<div class="wrap">
+    <h1>${t('fromFestival')}</h1><p class="lead">${t('fromLead')}</p>
+    <div class="grid grid-4">${DATA.items.map(itemCard).join('')}</div>
+    <h2>${t('stories')}</h2><p class="blocklead">${t('storiesLead')}</p>
+    <div class="grid grid-3">${stories.map(threadCard).join('')}</div>
+    <h2>${t('collections')}</h2>
+    <div class="grid grid-3">${coll.map(threadCard).join('')}</div>
+    <h2>${t('venues')}</h2>
+    <ul class="venues grid grid-3">${Object.keys(DATA.venues).map(k => { const n = DATA.program.filter(p => p.venue === k).length;
+      return `<li><h3>${esc(DATA.venues[k].n)}</h3><p>${esc(DATA.venues[k].d)}</p>${n ? `<p class="small">${n} programposter i 2026</p>` : ''}</li>`; }).join('')}</ul>
+  </div>`;
 }
-function pWork(r) {
-  const w = DATA.works.find(x => x.id === r.b) || DATA.works[0];
+function pItem(r) {
+  const w = item(r.b) || DATA.items[0];
   const media = w.type === 'video' || w.type === 'lyd'
     ? `<div class="player ${w.type}">${img(w.img, '')}<span class="play" aria-hidden="true"></span><p>${t('mockMedia')}</p></div>`
     : w.gallery ? `<div class="gallery">${w.gallery.map(g => `<figure>${img(g, 'Bilde fra festivalen')}<figcaption>Foto: mangler</figcaption></figure>`).join('')}</div>`
     : `<figure class="work-img">${img(w.img, '')}</figure>`;
-  const rel = DATA.dialogues.filter(d => (d.items || []).some(i => i[2] === w.id));
+  const ths = threadsFor(s => s.item === w.id);
   return `<article class="wrap narrow work-page">
-    <p class="crumb"><a href="#/verk">${t('works')}</a></p>
-    <span class="tag">${L(DATA.workTypes[w.type])}</span>
+    <p class="crumb"><a href="#/fra">${t('fromFestival')}</a></p>
+    <p class="kicker">${L(DATA.itemTypes[w.type])}${w.mock ? ` <span class="tag tag-ex">${t('example')}</span>` : ''}</p>
     <h1>${esc(w.title)}</h1>
     ${media}
     ${w.body.map((p, i) => `<p class="${i === 0 ? 'lead' : ''}">${esc(facts(p))}</p>`).join('')}
+    ${w.who ? personBox(w.who) : ''}
     <dl class="meta">
-      <div><dt>${t('contributor')}</dt><dd>${esc(w.by)}</dd></div>
+      ${w.who ? '' : `<div><dt>${t('contributor')}</dt><dd>${esc(w.by)}</dd></div>`}
       <div><dt>${t('published')}</dt><dd>${esc(w.date)}</dd></div>
       <div><dt>${t('licence')}</dt><dd>${esc(w.lic)}</dd></div>
     </dl>
-    ${rel.length ? `<h2>${t('belongsTo')}</h2><div class="grid grid-2">${rel.map(dialogueCard).join('')}</div>` : ''}
+    ${ths.map(th => `<section class="story"><h2>${t('partOf')}: ${esc(th.title)}</h2>${stepsList(th)}</section>`).join('')}
   </article>`;
-}
-
-/* ---------- Dialoger ---------- */
-function dialogueCard(d) {
-  return `<a class="card dia" href="${d.link || '#/dialoger/' + d.id}"><span class="tag tag-dark">${L(DATA.dialogueTypes[d.type])}</span><h3>${esc(d.title)}</h3><p>${t('by')} ${esc(d.by)}</p></a>`;
-}
-function pDialogues() {
-  return `<div class="wrap"><h1>${t('dialogues')}</h1><p class="lead">En dialog setter verk sammen i en sammenheng: en prosess, en tidslinje, et kart eller en katalog.</p>
-    <div class="grid grid-2">${DATA.dialogues.map(dialogueCard).join('')}</div></div>`;
-}
-function pDialogue(r) {
-  const d = DATA.dialogues.find(x => x.id === r.b) || DATA.dialogues[0];
-  let body = '';
-  if (d.items) body = `<ol class="line ${d.type}">${d.items.map(i => `<li><strong>${esc(i[0])}</strong><p>${esc(i[1])}</p>${i[2] ? `<a href="#/verk/${i[2]}">${esc(DATA.works.find(w => w.id === i[2]).title)}</a>` : ''}</li>`).join('')}</ol>`;
-  if (d.venues) body = `<p class="small">Kartflate kommer med egne kartfliser. Her vises stedene som liste.</p><ul class="venues">${Object.keys(DATA.venues).map(k => {
-    const n = DATA.program.filter(p => p.venue === k).length;
-    return `<li><h3>${esc(DATA.venues[k].n)}</h3><p>${esc(DATA.venues[k].d)}</p>${n ? `<p class="small">${n} programposter i 2026</p>` : ''}</li>`; }).join('')}</ul>`;
-  return `<article class="wrap narrow"><p class="crumb"><a href="#/dialoger">${t('dialogues')}</a></p>
-    <span class="tag tag-dark">${L(DATA.dialogueTypes[d.type])}</span><h1>${esc(d.title)}</h1><p class="lead">${t('by')} ${esc(d.by)}</p>${body}</article>`;
 }
 
 /* ---------- Bidragsytere ---------- */
@@ -245,10 +309,14 @@ function pPeople() {
 }
 function pPerson(r) {
   const k = DATA.people[r.b] ? r.b : Object.keys(DATA.people)[0], p = DATA.people[k];
-  const items = DATA.program.filter(x => x.who === k);
+  const posts = DATA.program.filter(x => x.who === k), made = DATA.items.filter(i => i.who === k);
+  const ths = threadsFor(s => (s.post && post(s.post).who === k) || (s.item && item(s.item).who === k));
   return `<article class="wrap narrow"><p class="crumb"><a href="#/bidragsytere">${t('people')}</a></p>
+    <p class="kicker"><span class="dot" style="background:${cat(p.k).c}"></span>${L(cat(p.k))}</p>
     <h1>${esc(p.n)}</h1><p class="lead">${esc(p.b)}</p>
-    ${items.length ? `<h2>${t('inProgram')}</h2><ul class="plist">${items.map(x => progItem(Object.assign({}, x, { title: fmt(dayDate(x.day), { weekday: 'long' }) + ': ' + x.title }))).join('')}</ul>` : ''}
+    ${posts.length ? `<h2>${t('inProgram')}</h2><ul class="plist">${posts.map(x => progItem(x, { prefix: fmt(dayDate(x.day), { weekday: 'long' }) })).join('')}</ul>` : ''}
+    ${made.length ? `<h2>${t('fromFestival')}</h2><div class="grid grid-2">${made.map(itemCard).join('')}</div>` : ''}
+    ${ths.map(th => `<section class="story"><h2>${t('wholeStory')}</h2><p>${esc(th.lead)}</p>${stepsList(th)}</section>`).join('')}
   </article>`;
 }
 
@@ -314,7 +382,7 @@ function pLive() {
     <div class="player video">${img('storscenen', '')}<span class="play" aria-hidden="true"></span><p>${t('mockMedia')}</p></div>
     ${n ? `<h2>${t('liveNow')}</h2><ul class="plist">${progItem(n)}</ul>` : ''}
     <h2>${t('nowNext')}</h2><ul class="plist">${nn.next.map(p => progItem(p)).join('')}</ul>
-    <p class="note">Live-siden vises i menyen bare når en sending pågår eller er nær. Sendingen opprettes fra programposten, og opptaket blir et verk i arkivet.</p>
+    <p class="note">Live vises i menyen bare når en sending pågår eller er nær. Sendingen opprettes fra programposten, og opptaket legges etterpå inn i samme forløp.</p>
   </div>`;
 }
 
@@ -325,32 +393,37 @@ function pAbout() {
     <p class="lead">Dette er en statisk skisse av brukeropplevelsen i Karlsøy 2.0. Den viser hvordan utsiden og innsiden kan henge sammen, ikke hvordan det skal se ut til slutt.</p>
     <h2>Hva du kan prøve</h2>
     <ul class="ticks">
+      <li>Åpne en programpost, for eksempel <a href="#/forlop/urfolk">samtalen om urfolks rettigheter</a>, og følg hele forløpet: kunngjøring, konsert, samtale, opptak og avisoppslag.</li>
       <li>Bla i programmet for 2026, filtrer på kategori og lagre poster med stjerna.</li>
       <li>Trykk «${t('login')}» og bytt mellom fire eksempelbrukere. Hver ser bare det den trenger.</li>
+      <li>Åpne «${t('messages')}» nederst til høyre på innsiden og send en melding.</li>
       <li>Bytt mellom «${t('festivalWeek')}» og «${t('restOfYear')}» på forsiden innenfor.</li>
       <li>Åpne årshjulet, trykk på en måned og velg en gruppe.</li>
-      <li>Ta en oppgave fra Tavla.</li>
       <li>Bytt språk. Grensesnittet finnes på norsk, engelsk, fransk og nederlandsk.</li>
     </ul>
+    <h2>Slik henger innholdet sammen</h2>
+    <p>En bidragsyter har programposter. Rundt en programpost lages det innhold: strøm, opptak, bilder, tekst og avisoppslag. Det som hører sammen, kobles i et forløp og vises i rekkefølge. En samling er det samme grepet brukt på ting som ikke er ett arrangement, for eksempel historien til øya.</p>
+    <table>
+      <tr><th>I menyen og på sidene</th><th>I Hypa Poiesis</th></tr>
+      <tr><td>Innhold fra festivalen: artikkel, bilder, video, lyd, avisoppslag</td><td>Verk</td></tr>
+      <tr><td>Forløp og samlinger</td><td>Dialoger (prosess, tidslinje, katalog)</td></tr>
+      <tr><td>Programpost, sted, kategori</td><td>Program</td></tr>
+      <tr><td>Bidragsyter</td><td>Bidragsyter</td></tr>
+    </table>
+    <p>Ordene «verk» og «dialog» brukes ikke i grensesnittet. De er prinsipper for hvordan innhold organiseres og oppleves.</p>
     <h2>Hva som er ekte, og hva som er eksempler</h2>
     <table>
       <tr><th>Ekte, fra kildene</th><td>Program 2026, steder, kategorier, bidragsytere, manifest, grupper, huskelister, frister, prinsipper, FAQ, bilder fra dagens nettside.</td></tr>
-      <tr><th>Eksempler</th><td>Brukerne Mari, Jonas, Aila og Sindre, Tavla-kort, samreise, statuser på bidrag, driftsstatus, video- og lydopptak.</td></tr>
+      <tr><th>Eksempler</th><td>Opptak, avisoppslag og paneldebatt (merket «${t('example')}»), brukerne Mari, Jonas, Aila og Sindre, meldinger, Tavla-kort, samreise, statuser på bidrag og driftsstatus.</td></tr>
       <tr><th>Mangler</th><td>Fotograf og lisens på bildene, beskrivelse av gruppa Mobilisering og media, innhold på andre språk enn norsk.</td></tr>
     </table>
     <h2>Data ett sted</h2>
     <p>All data ligger i fila <code>js/data.js</code>. Pris, datoer og klokkeslett står én gang øverst i fila og settes inn i FAQ, håndbok og praktisk info. Årshjulet og fristene på forsiden innenfor tegnes fra samme liste.</p>
     <p>Der kildene var uenige, bruker prototypen programheftet for 2026: bevegelse kl. ${E.movement} og fellesmiddag kl. ${E.dinner}.</p>
-    <h2>Kobling til kravspesifikasjonen</h2>
-    <table>
-      <tr><th>Utsiden</th><td>W1, W4 til W6, W9, W11 og Hypa Poiesis F1 til F9.</td></tr>
-      <tr><th>Forsiden innenfor</th><td>D1 til D7, A2 og A3.</td></tr>
-      <tr><th>Håndbok og årshjul</th><td>H1, H2, H6 og H7.</td></tr>
-      <tr><th>Koordinering</th><td>K1, K5 og K6.</td></tr>
-      <tr><th>Drift</th><td>D8 og N12.</td></tr>
-    </table>
+    <h2>Meldinger</h2>
+    <p>Meldinger er asynkrone: du skriver når det passer, og får varsel på e-post om noe står ulest. Samtalene følger gruppene, bidragene og enkeltpersoner. I prototypen lagres det du skriver bare i din egen nettleser.</p>
     <h2>Teknisk</h2>
-    <p>Ren HTML, CSS og JavaScript uten byggesteg, rammeverk eller eksterne kall. Stjerner, valgt bruker og språk lagres bare i din egen nettleser. Utseendet på utsiden følger fargene i designet for Hypa Poiesis.</p>
+    <p>Ren HTML, CSS og JavaScript uten byggesteg, rammeverk eller eksterne kall. Fargene følger designet for Hypa Poiesis. Siden ber utvidelsen Dark Reader om å la fargene være.</p>
   </div>`;
 }
 
@@ -387,7 +460,43 @@ function insideShell(r) {
       <p class="small">Eksempelbrukere. I den ferdige løsningen er dette din egen konto.</p>
       <div class="sheet-foot">${langSelect()}<a class="btn" href="#/" data-act="logout">${t('logout')}</a><button class="btn btn-dark" data-act="sheet">${t('close')}</button></div>
     </div>` : ''}
-  <div class="ishell">${insideTabs(r)}<main id="main" class="imain">${(pages[r.b] || iDash)(r)}</main></div>`;
+  <div class="ishell">${insideTabs(r)}<main id="main" class="imain">${(pages[r.b] || iDash)(r)}</main></div>
+  ${STATE.chat ? chatPop() : chatFab()}`;
+}
+
+/* ---------- Meldinger: asynkron chat i et vindu over grensesnittet ---------- */
+function chatsFor() {
+  return DATA.chats.filter(c => c.kind === 'gruppe' ? myGroups().includes(c.g) : c.kind === 'bidrag' ? levelAtLeast('verv') : true);
+}
+const chatName = c => (c.kind === 'gruppe' ? DATA.groups[c.g].n : c.name);
+const chatMsgs = c => c.msgs.concat(STATE.sent[c.id] || []);
+const isMe = m => m.from === persona().name;
+const unreadOf = c => Math.max(0, c.msgs.filter(m => !isMe(m)).length - (STATE.read[c.id] || 0));
+function chatFab() {
+  const n = chatsFor().reduce((a, c) => a + unreadOf(c), 0);
+  return `<button class="chatfab" data-act="chat" aria-label="${t('messages')}${n ? ', ' + n + ' ' + t('unread') : ''}">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>${n ? `<span class="badge">${n}</span>` : ''}</button>`;
+}
+function chatPop() {
+  const list = chatsFor(), c = byId(list, STATE.chatId);
+  if (c) {
+    const canWrite = c.kind !== 'beskjed' || levelAtLeast('medlem');
+    return `<section class="chatpop" role="dialog" aria-label="${esc(chatName(c))}">
+      <header><button class="iconbtn" data-act="chatback" aria-label="${t('back')}">‹</button><h2>${esc(chatName(c))}</h2><button class="iconbtn" data-act="chat" aria-label="${t('close')}">×</button></header>
+      <ol class="chat-msgs">${chatMsgs(c).map(m => `<li class="${isMe(m) ? 'me' : ''}"><p class="who-when">${isMe(m) ? t('you') : esc(m.from)}, ${esc(m.when || t('justNow'))}</p><p class="bubble">${esc(m.t)}</p></li>`).join('')}</ol>
+      ${canWrite ? `<form class="chat-form" data-act="chatsend"><label class="sr" for="chat-in">${t('writeMsg')}</label><textarea id="chat-in" rows="1" placeholder="${t('writeMsg')}" required></textarea><button class="btn btn-dark">${t('send')}</button></form>`
+        : `<p class="chat-ro">${t('chatReadOnly')}</p>`}
+    </section>`;
+  }
+  const group = (label, kind) => { const l = list.filter(x => x.kind === kind); return l.length ? `<h3>${label}</h3><ul>${l.map(x => { const m = chatMsgs(x).slice(-1)[0], n = unreadOf(x);
+    return `<li><button data-act="chatopen" data-v="${x.id}">${x.kind === 'gruppe' ? `<span class="swatch" style="background:${DATA.groups[x.g].c}"></span>` : `<span class="avatar sm">${esc(chatName(x)[0])}</span>`}<span><strong>${esc(chatName(x))}</strong><span>${esc(m.t)}</span></span>${n ? `<span class="badge">${n}</span>` : `<span class="when">${esc(m.when || t('justNow'))}</span>`}</button></li>`; }).join('')}</ul>` : ''; };
+  return `<section class="chatpop" role="dialog" aria-label="${t('messages')}">
+    <header><h2>${t('messages')}</h2><button class="iconbtn" data-act="chat" aria-label="${t('close')}">×</button></header>
+    <div class="chat-list">
+      ${group(t('chatGroups'), 'gruppe')}${group(t('chatContrib'), 'bidrag')}${group(t('chatDirect'), 'direkte')}${group(t('chatAnnounce'), 'beskjed')}
+      <p class="small">${t('chatAsync')}</p>
+    </div>
+  </section>`;
 }
 
 /* ---------- Dashbord ---------- */
@@ -478,10 +587,10 @@ function wheelSvg() {
   const R0 = 50, W = 9.6, active = wheelGroups(), now = new Date();
   const ringR = g => R0 + RINGS.indexOf(g) * W + W / 2;
   let s = '';
-  RINGS.forEach(g => { s += `<circle cx="180" cy="180" r="${ringR(g)}" fill="none" stroke="${DATA.groups[g].c}" stroke-width="${W - 1}" opacity="${active.includes(g) ? 0.55 : 0.14}"/>`; });
+  RINGS.forEach(g => { s += `<circle cx="180" cy="180" r="${ringR(g)}" fill="none" stroke="${DATA.groups[g].c}" stroke-width="${W - 1}" opacity="${active.includes(g) ? 0.85 : 0.22}"/>`; });
   for (let m = 0; m < 12; m++) {
     const a0 = m * 30, a1 = a0 + 30, [lx, ly] = polar(163, a0 + 15), sel = STATE.wMonth === m + 1;
-    s += `<path d="${wedge(147, 153, a0 + 0.8, a1 - 0.8)}" fill="hsl(${(m * 30 + 10) % 360} 85% 52%)"/>`;
+    s += `<path d="${wedge(147, 153, a0 + 0.8, a1 - 0.8)}" fill="hsl(${(m * 30 + 10) % 360} 75% 80%)"/>`;
     if (sel) s += `<path d="${wedge(R0, 147, a0, a1)}" fill="#000033" opacity="0.12"/>`;
     s += `<line x1="${polar(R0, a0)[0].toFixed(1)}" y1="${polar(R0, a0)[1].toFixed(1)}" x2="${polar(147, a0)[0].toFixed(1)}" y2="${polar(147, a0)[1].toFixed(1)}" stroke="#fff" stroke-width="1.2"/>`;
     s += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="middle" class="wm${sel ? ' sel' : ''}">${monthName(m + 1, 'short').replace('.', '')}</text>`;
@@ -494,7 +603,7 @@ function wheelSvg() {
     s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on ? 4.4 : 2.4}" fill="${on ? '#000033' : '#00003355'}" stroke="#fff" stroke-width="${on ? 1.2 : 0}"/>`;
   });
   const [tx, ty] = polar(158, now.getMonth() * 30 + (now.getDate() - 1) / 31 * 30), [ux, uy] = polar(R0 - 6, now.getMonth() * 30 + (now.getDate() - 1) / 31 * 30);
-  s += `<line x1="${ux.toFixed(1)}" y1="${uy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" stroke="#d6002a" stroke-width="2" stroke-linecap="round"/>`;
+  s += `<line x1="${ux.toFixed(1)}" y1="${uy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" stroke="#c43d55" stroke-width="2" stroke-linecap="round"/>`;
   for (let m = 0; m < 12; m++) s += `<path d="${wedge(R0, 176, m * 30, m * 30 + 30)}" fill="transparent" class="wtap" data-act="wmonth" data-v="${m + 1}" role="button" tabindex="0" aria-label="${monthName(m + 1)}"/>`;
   s += `<circle cx="180" cy="180" r="${R0 - 8}" fill="#fff"/><text x="180" y="${STATE.wMonth ? 178 : 185}" text-anchor="middle" class="wc">${STATE.wMonth ? monthName(STATE.wMonth, 'short').replace('.', '') : now.getFullYear()}</text>`;
   if (STATE.wMonth) s += `<text x="180" y="194" text-anchor="middle" class="wc2" data-act="wmonth" data-v="0" role="button" tabindex="0">${t('wholeYear')}</text>`;
@@ -579,10 +688,13 @@ const ACTIONS = {
   fav(v) { toggle(STATE.fav, v); },
   take(v) { toggle(STATE.taken, v); },
   fest(v) { STATE.fest = v === '1'; },
-  persona(v) { STATE.persona = v; STATE.sheet = false; STATE.wGroup = 'mine'; if (['arshjul', 'koordinering', 'drift'].includes(route().b)) location.hash = '#/inn'; },
+  persona(v) { STATE.persona = v; STATE.sheet = false; STATE.wGroup = 'mine'; STATE.chat = false; STATE.chatId = null; if (['arshjul', 'koordinering', 'drift'].includes(route().b)) location.hash = '#/inn'; },
   logout() { STATE.sheet = false; },
   wmonth(v) { STATE.wMonth = +v === STATE.wMonth ? null : (+v || null); },
-  wgroup(v) { STATE.wGroup = v; }
+  wgroup(v) { STATE.wGroup = v; },
+  chat() { STATE.chat = !STATE.chat; STATE.chatId = null; },
+  chatback() { STATE.chatId = null; },
+  chatopen(v) { STATE.chatId = v; const c = byId(DATA.chats, v); STATE.read[v] = c.msgs.filter(m => !isMe(m)).length; }
 };
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
@@ -596,7 +708,8 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('svg [data-act]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
-  if (e.key === 'Escape' && (STATE.menu || STATE.sheet)) { STATE.menu = STATE.sheet = false; render(true); }
+  if (e.key === 'Escape' && (STATE.menu || STATE.sheet || STATE.chat)) { STATE.menu = STATE.sheet = STATE.chat = false; render(true); }
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'chat-in') { e.preventDefault(); e.target.form.requestSubmit(); }
 });
 document.addEventListener('change', e => {
   const el = e.target.closest('select[data-act]');
@@ -607,6 +720,14 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('submit', e => {
   if (e.target.dataset.act === 'subscribe') { e.preventDefault(); STATE.subscribed = true; render(true); }
+  if (e.target.dataset.act === 'chatsend') {
+    e.preventDefault();
+    const txt = e.target.querySelector('textarea').value.trim();
+    if (!txt || !STATE.chatId) return;
+    (STATE.sent[STATE.chatId] = STATE.sent[STATE.chatId] || []).push({ from: persona().name, t: txt, when: '' });
+    saveState(); render(true);
+    const inp = document.getElementById('chat-in'); if (inp) inp.focus();
+  }
 });
-window.addEventListener('hashchange', () => { STATE.menu = false; STATE.sheet = false; render(false); });
+window.addEventListener('hashchange', () => { STATE.menu = false; STATE.sheet = false; STATE.chat = false; render(false); });
 render(false);
