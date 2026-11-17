@@ -111,7 +111,7 @@ main > .wrap:first-child, main > article:first-child, main > div.wrap { padding-
 .hero-grid { display: grid; gap: 26px; }
 .hero-kick { font-weight: 800; margin: 0; }
 .hero-date { font-size: clamp(1.2rem, 4.5vw, 1.6rem); font-weight: 800; margin: 0 0 .5em; }
-.hero h1 { font-size: clamp(2.8rem, 12vw, 5.6rem); line-height: .95; letter-spacing: -0.035em; }
+.hero h1 { font-size: clamp(2.6rem, 11vw, 5.2rem); line-height: 1.08; letter-spacing: -0.02em; font-weight: 750; }
 .hero .lead { max-width: 30em; }
 .hero .btn { border-color: var(--tekst); }
 .hero-img { margin: 0; position: relative; }
