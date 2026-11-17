@@ -383,6 +383,7 @@ DATA.personas = {
   deltaker: { name: 'Mari', level: 'deltaker', groups: ['kjokken'], role: { nb: 'Deltaker', en: 'Participant', fr: 'Participante', nl: 'Deelnemer' } },
   los:      { name: 'Jonas', level: 'medlem', groups: ['kjokken', 'miljo'], role: { nb: 'Gruppelos, kjøkken og bar', en: 'Group guide, kitchen and bar', fr: 'Guide de groupe, cuisine et bar', nl: 'Groepsloods, keuken en bar' } },
   verv:     { name: 'Aila', level: 'verv', groups: ['program', 'koord'], role: { nb: 'Koordinator, program og teknisk', en: 'Coordinator, programme and tech', fr: 'Coordinatrice, programme et technique', nl: 'Coördinator, programma en techniek' } },
+  english:  { name: 'Sam', level: 'medlem', lang: 'en', groups: ['media', 'program'], role: { nb: 'Media (engelsk)', en: 'Media (English)', fr: 'Média (anglais)', nl: 'Media (Engels)' } },
   drift:    { name: 'Sindre', level: 'drift', groups: ['koord'], role: { nb: 'Driftsgruppa', en: 'Operations group', fr: 'Groupe d’exploitation', nl: 'Beheergroep' } }
 };
 

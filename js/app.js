@@ -75,6 +75,8 @@ function route() {
 function render(keepScroll) {
   const r = route(), inside = r.a === 'inn';
   if (inside && !STATE.persona) { STATE.persona = 'deltaker'; saveState(); }
+  if (inside && F2 && (r.b === 'epost' || r.b === 'kalender') && !mailUser()) { STATE.persona = 'los'; STATE.toast = t('tryAs'); saveState(); }
+  if (inside && F2 && r.b === 'verktoy' && (r.c === 'mail' || r.c === 'calendar')) { location.replace('#/inn/' + (r.c === 'mail' ? 'epost' : 'kalender')); return; }
   document.documentElement.lang = STATE.lang;
   document.body.dataset.inside = inside ? '1' : '0';
   document.getElementById('app').innerHTML = protoBar() + (inside ? insideShell(r) : outsideShell(r)) + (STATE.toast ? `<p class="toast" role="status">${esc(STATE.toast)}</p>` : '');
@@ -89,6 +91,7 @@ function protoBar() {
   return `<div class="protobar">
     <a href="#/om" class="pb-label">${t('proto')} · ${F2 ? t('phase2Proto') : t('phase1Proto')}</a>
     <div class="pb-when" role="group" aria-label="${t('showAs')}"><span>${t('showAs')}:</span>${w('for', 'whenBefore')}${w('under', 'whenDuring')}${w('etter', 'whenAfter')}</div>
+    ${F2 ? `<div class="pb-try"><button data-act="try2" data-v="epost">${t('tryMail')}</button><button data-act="try2" data-v="kalender">${t('tryCal')}</button></div>` : ''}
     <a class="pb-switch" href="${F2 ? 'index.html' : 'fase2.html'}${location.hash}">${F2 ? t('toPhase1') : t('toPhase2')}</a>
   </div>`;
 }
@@ -859,6 +862,10 @@ function iMore() {
     <section class="panel"><h2>${t('myData')}</h2><p>${t('myDataLead')}</p><p class="actions"><button class="btn" data-act="toast" data-v="${esc(t('exportDone'))}">${t('exportData')}</button></p></section>`;
 }
 function iTool(r) {
+  if (r.c === 'mail' || r.c === 'calendar') {
+    const k = r.c === 'mail' ? 'epost' : 'kalender';
+    return `<h1>${t(r.c)}</h1><div class="panel"><p>${t(r.c === 'mail' ? 'f1Mail' : 'f1Cal')}</p><p class="actions"><a class="btn btn-dark" href="fase2.html#/inn/${k}">${t('seeInF2')}</a><a class="btn" href="#/inn">${t('back')}</a></p></div>`;
+  }
   return `<h1>${t(I18N[r.c] ? r.c : 'tools')}</h1><p class="empty">${t('notInProto')}</p><p><a class="btn" href="#/inn">${t('back')}</a></p>`;
 }
 
@@ -1153,7 +1160,7 @@ const ACTIONS = {
   take(v) { toggle(STATE.taken, v); },
   energy(v) { STATE.energy = +v; },
   folkg(v) { STATE.folkG = v; },
-  persona(v) { STATE.persona = v; STATE.sheet = false; STATE.wGroup = 'mine'; STATE.chat = false; STATE.chatId = null; if (['arshjul', 'koordinering', 'drift', 'husutleie'].includes(route().b)) location.hash = '#/inn'; },
+  persona(v) { const prev = DATA.personas[STATE.persona]; STATE.persona = v; if (DATA.personas[v].lang) STATE.lang = DATA.personas[v].lang; else if (prev && prev.lang && STATE.lang === prev.lang) STATE.lang = 'nb'; STATE.sheet = false; STATE.wGroup = 'mine'; STATE.chat = false; STATE.chatId = null; if (['arshjul', 'koordinering', 'drift', 'husutleie'].includes(route().b)) location.hash = '#/inn'; },
   logout() { STATE.sheet = false; },
   wmonth(v) { STATE.wMonth = +v === STATE.wMonth ? null : (+v || null); },
   wgroup(v) { STATE.wGroup = v; },
@@ -1178,6 +1185,7 @@ const ACTIONS = {
   reply(v) { STATE.replyTo = v; },
   mailtake(v) { STATE.mailState[v] = Object.assign({}, STATE.mailState[v], { who: persona().name, status: 'tatt' }); STATE.toast = t('mailTaken'); },
   maildone(v) { STATE.mailState[v] = Object.assign({}, STATE.mailState[v], { status: 'besvart', who: (STATE.mailState[v] || {}).who || persona().name }); STATE.toast = t('mailDone'); },
+  try2(v) { if (!mailUser()) { STATE.persona = 'los'; STATE.toast = t('tryAs'); } saveState(); if (location.hash === '#/inn/' + v) render(false); else location.hash = '#/inn/' + v; },
   mail2cal(v) { STATE.newEvent = true; location.hash = '#/inn/kalender'; },
   mail2task(v) { const m = DATA.mails.find(x => x.id === v); STATE.tasks.unshift({ id: 'o' + Date.now(), t: m.subj, role: t('mailFollow'), g: myGroups()[0], to: persona().name, by: persona().name, status: 'ny', due: '–' }); STATE.toast = t('taskFromMail'); },
   calmonth(v) { STATE.calM += +v; if (STATE.calM < 1) { STATE.calM = 12; STATE.calY--; } if (STATE.calM > 12) { STATE.calM = 1; STATE.calY++; } STATE.calDay = 0; },

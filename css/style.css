@@ -687,3 +687,7 @@ textarea { width: 100%; padding: 12px 14px; border: 2px solid var(--gra); border
 .hb-ed{border:1px solid var(--gra);border-radius:12px;padding:14px 16px;background:#fff;display:flex;flex-direction:column;gap:6px}
 .hb-ed p{margin:0;flex:1}
 .hb-ed .btn{align-self:flex-start}
+
+.pb-try{display:flex;gap:6px}
+.pb-try button{border:1px solid var(--lilla,#B07FE0);background:#fff;color:var(--tekst);border-radius:999px;padding:3px 10px;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+.pb-try button:hover{background:#F3ECFC}
