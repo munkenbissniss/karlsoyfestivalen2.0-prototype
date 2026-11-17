@@ -25,7 +25,7 @@ DATA.edition = {
 DATA.cats = {
   musikk:   { c: '#F0604C', nb: 'Musikk', en: 'Music', fr: 'Musique', nl: 'Muziek' },
   kunst:    { c: '#F04DAF', nb: 'Kunst og teater', en: 'Art and theatre', fr: 'Art et théâtre', nl: 'Kunst en theater' },
-  politikk: { c: '#9B4FD0', nb: 'Politikk', en: 'Politics', fr: 'Politique', nl: 'Politiek' },
+  politikk: { c: '#C49BEB', nb: 'Politikk', en: 'Politics', fr: 'Politique', nl: 'Politiek' },
   workshop: { c: '#4DF0A0', nb: 'Workshops og annet', en: 'Workshops and more', fr: 'Ateliers et autres', nl: 'Workshops en meer' },
   barn:     { c: '#F7C531', nb: 'Barn og ungdom', en: 'Children and youth', fr: 'Enfants et jeunes', nl: 'Kinderen en jongeren' },
   maltid:   { c: '#F5932E', nb: 'Felles måltider', en: 'Shared meals', fr: 'Repas communs', nl: 'Gezamenlijke maaltijden' },
@@ -175,7 +175,7 @@ DATA.people = {
   antrushin: { n: 'Andrei Antrushin', k: 'musikk', b: 'Musiker og kunstner fra Arkhangelsk med lang tilknytning til Karlsøya. Prosjektet home . between the lines.' },
   peacechoir: { n: 'Karlsøy Peacechoir', k: 'musikk', b: 'Koret vi lager sammen under festivalen. Ingen forkunnskaper trengs. Støttet av Frifond.' },
   blix: { n: 'Elind Rui Blix', k: 'kunst', b: 'Maler. Utstillingen Understrøm ble til under tre ukers kunstneropphold på øya.' },
-  tobasi: { n: 'Ahmed Tobasi', k: 'kunst', b: 'Teaterkunstner fra Sharara Theatre i Tulkarm. Workshopen Between Here and There.' },
+  tobasi: { n: 'Ahmed Tobasi', k: 'kunst', b: 'Teaterkunstner fra Sharara Theatre i Tulkarem på Vestbredden i Palestina. Workshopen Between Here and There.' },
   peacepainting: { n: 'Peacepainting', k: 'workshop', b: 'Ideell organisasjon som bruker kunst som verktøy for likeverd og fred.' }
 };
 
@@ -232,10 +232,12 @@ DATA.threads = [
       { when: 'Søndag 9. august', t: 'Paneldebatt i etterkant', note: 'En oppfølgende samtale kan legges til som eget ledd.', ex: true },
       { item: 'urfolk-presse' }
     ] },
-  { id: 'peacechoir', kind: 'forlop', title: 'Peacechoir: tre øvelser og en konsert', img: 'storscenen',
-    lead: 'Koret vi lager sammen. Tre ettermiddager i kirka, så Storscenen.',
+  { id: 'peacechoir', kind: 'forlop', title: 'Fredskoret: øvelser, popup-konserter og konsert', img: 'storscenen',
+    lead: 'Fredskoret (Peacechoir) er koret vi lager sammen: tre ettermiddager med øvelse i kirka, popup-konserter rundt på øya, repertoaret, og til slutt Storscenen.',
     steps: [
       { post: pid(1, 'Peacechoir') }, { post: pid(2, 'Peacechoir') }, { post: pid(3, 'Peacechoir') },
+      { when: 'Underveis', t: 'Popup-konserter rundt på øya', note: 'Koret dukker opp der folk er, og øver repertoaret foran publikum.', ex: true },
+      { when: 'Repertoar', t: 'Sangene, tekstene og notene', note: 'Legges ut som verk med lisens, så andre kor kan bruke dem.', ex: true },
       { post: pid(4, 'Peacechoir – konsert') }, { item: 'kor-lyd' }
     ] },
   { id: 'urverksted', kind: 'forlop', title: 'Kreativt urverksted for barn: fra verksted til visning', img: 'hb-drage',
@@ -272,6 +274,14 @@ DATA.threads = [
       { when: '1. mai', t: 'Programslipp og plakat' },
       { when: 'Festivaluka', t: 'Alle på programmet møter i gruppa Program og teknikk hver dag' }
     ] },
+  { id: 'tobasi-tulkarem', kind: 'tema', title: 'Tobasi på Karlsøyfestivalen', img: 'gruppemoter',
+    lead: 'En rød tråd over flere år: Ahmed Tobasis prosjekter på Karlsøya og historien om teateret i Tulkarem på Vestbredden i Palestina.',
+    steps: [
+      { when: 'Tidligere år', t: 'Tobasis prosjekter på Karlsøyfestivalen', note: 'Hentes fra festivalarkivet: program, bilder og omtale.', ex: true },
+      { when: 'Tulkarem', t: 'Historien om teateret', note: 'Tekst, bilder og opptak om teateret i Tulkarem på Vestbredden i Palestina, med kreditering og lisens.', ex: true },
+      { post: pid(2, 'Between Here and There') },
+      { when: 'Neste år', t: 'Tråden fortsetter', note: 'Nye programposter og verk legges til temaet når de kommer.', ex: true }
+    ] },
   { id: 'kom-i-gang', kind: 'tema', title: 'Ny på Karlsøyfestivalen?', img: 'i-ring',
     lead: 'Tre ting å lese før du kommer.',
     steps: [{ item: 'deltaker' }, { item: 'omsorg' }, { item: 'historie' }] }
@@ -289,7 +299,7 @@ DATA.groups = {
     tasks: ['Få noen til å lage plakat ut fra årets tema', 'Design og distribusjon av programhefte', 'Presseskriv og kontakt med journalister', 'Synliggjøre de som har gitt støtte', 'Oppdatere nettsida'] },
   logistikk:{ c: '#BDB2AA', n: 'Logistikk', kind: 'forb', d: 'Buss, ferge og fly. Tilbudet til øya er begrenset, så ekstraturer må avtales i god tid.',
     tasks: ['Be om ekstra fergeanløp fredag, lørdag og søndag', 'Kjøpe ekstra bussturer, særlig søndag', 'Én ansvarlig booker flybilletter', 'Avtale ekstra parkering på Hansnes', 'Transport på øya med bil og traktor'] },
-  vertskap: { c: '#9B4FD0', n: 'Vertskap og vakt', kind: 'begge', d: 'Tar imot folk, står i porten og på kontoret, planlegger innkvartering og vakthold. Arbeidssentral under festivalen.',
+  vertskap: { c: '#C49BEB', n: 'Vertskap og vakt', kind: 'begge', d: 'Tar imot folk, står i porten og på kontoret, planlegger innkvartering og vakthold. Arbeidssentral under festivalen.',
     tasks: ['Lage innkvarteringsliste sammen med bookinggruppa', 'Registrere deltakere og dele ut bånd', 'Infotavler og skilting av vann og do', 'Humørtog for de som jobber mye', 'Vaktliste: som oftest to i hver port', 'Opplæring i skjenkeregler'] },
   kjokken:  { c: '#4DE4F0', n: 'Kjøkken og bar', kind: 'begge', d: 'Lokale råvarer, vegetariske retter og sanking. Frokost og middag til alle, og mat til salg.',
     tasks: ['Planlegge frokost og middag hele uka', 'Bestille varer og sjekke varetellinga først', 'Turnusplan: ikke bruk opp folk, fordel dem utover', 'Ta imot og lære opp nye i gruppa', 'Vaktlister for baren'] },
@@ -406,7 +416,7 @@ DATA.rides = [
 
 DATA.services = [
   ['Felles innlogging', 'ok'], ['Nettside (Hypa Poiesis)', 'ok'], ['Koordinering', 'ok'], ['Filer og dokumenter', 'ok'],
-  ['Kalender', 'ok'], ['E-post', 'warn', 'Flyttes høsten 2027'], ['Nyhetsbrev', 'ok'], ['Strømmeserver', 'ok'],
+  ['Kalender', 'ok'], ['E-post', 'warn', 'Flyttes høsten 2027'], ['Nyhetsbrev', 'ok'], ['Strømmetjeneste (PeerTube)', 'ok'],
   ['Backup i natt', 'ok', '02:14, 38 GB'], ['Sist testet gjenoppretting', 'warn', 'For 5 måneder siden']
 ];
 

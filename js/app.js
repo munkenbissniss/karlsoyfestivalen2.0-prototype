@@ -8,15 +8,15 @@ const F2 = PHASE >= 2;
 const STORE_KEY = 'kf2-proto-v3';
 const STATE = Object.assign(
   { lang: 'nb', persona: null, when: 'under', fav: [], taken: [], group: null, checks: {}, hidden: false, sent: {}, read: {},
-    tasks: null, receipts: null, member: false, houseReq: [] },
+    tasks: null, receipts: null, member: false, houseReq: [], mailState: {}, sentMail: [], myEvents: [] },
   loadState(),
   { day: 3, cat: 'all', venue: 'all', q: '', energy: 0, folkG: 'all', wMonth: null, wGroup: 'mine', menu: false, sub: false, sheet: false,
-    subscribed: false, chat: false, chatId: null, repair: 0, claimed: [], toast: '', newTask: false, houseMonth: 4, houseUnit: 0 }
+    subscribed: false, chat: false, chatId: null, repair: 0, claimed: [], toast: '', newTask: false, houseMonth: 4, houseUnit: 0, mailBox: 'me', replyTo: null, calY: new Date().getFullYear(), calM: new Date().getMonth() + 1, calDay: 0, calGroups: 'mine', newEvent: false }
 );
 function loadState() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; } }
 function saveState() {
-  const { lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq } = STATE;
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq })); } catch (e) { /* privat modus */ }
+  const { lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq, mailState, sentMail, myEvents } = STATE;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq, mailState, sentMail, myEvents })); } catch (e) { /* privat modus */ }
 }
 if (!STATE.tasks) STATE.tasks = JSON.parse(JSON.stringify(DATA.tasks));
 if (!STATE.receipts) STATE.receipts = JSON.parse(JSON.stringify(DATA.receipts));
@@ -483,6 +483,12 @@ function pHandbook() {
     </div></div>
     <div class="wrap">
       <p class="note">${t('factsNote')}</p>
+      <h2>${t('hbEditions')}</h2>
+      <div class="hb-editions">
+        <div class="hb-ed"><strong>${t('hbEdOnline')}</strong><p>${t('hbEdOnlineD')}</p></div>
+        <div class="hb-ed"><strong>${t('hbEdPaper')}</strong><p>${t('hbEdPaperD')}</p><button class="btn" data-act="print">${t('hbEdPaperBtn')}</button></div>
+        <div class="hb-ed"><strong>${t('hbEdBooklet')}</strong><p>${t('hbEdBookletD')}</p><a class="btn" href="#/verktoykasse">${t('hbEdBookletBtn')}</a></div>
+      </div>
       <div class="chapters">${DATA.chapters.map(ch => `<a class="chapter" href="#/handbok/${ch.id}"><span class="ch-img">${img(ch.img, '')}</span><span class="ch-body"><strong>${esc(L(ch.title))}</strong><span>${facts(L(ch.core))}</span></span></a>`).join('')}</div>
       <h2>${t('festGroups')} ${E.next.from.slice(0, 4)}</h2><ul class="grouplist">${DATA.festivalGroups.map(groupLink).join('')}</ul>
       <h2>${t('prepGroups')}</h2><ul class="grouplist">${DATA.prepGroups.map(groupLink).join('')}</ul>
@@ -589,7 +595,7 @@ function pAbout() {
       <tr><th>Mangler</th><td>Portretter av bidragsytere (plassholdere med initialer), fotograf og lisens på flere bilder, innhold på engelsk.</td></tr>
     </table>
     <h2>Teknisk</h2>
-    <p>Ren HTML, CSS og JavaScript uten byggesteg, slik at den kan ligge på Codeberg Pages. Den ferdige løsningen skal bygges med React og Next.js. All data ligger i <code>js/data.js</code> og <code>js/data-extra.js</code>. Det du gjør lagres bare i din egen nettleser.</p>
+    <p>Ren HTML, CSS og JavaScript uten byggesteg, slik at den kan ligge på Codeberg Pages. Den ferdige løsningen skal bygges med Django og Wagtail, med Vue for de interaktive delene. All data ligger i <code>js/data.js</code> og <code>js/data-extra.js</code>. Det du gjør lagres bare i din egen nettleser.</p>
     <p>Fargene bygger på hovedpaletten (rød, hvit, grå, gråbrun og mørk gråbrun) og regnbuefargene fra logoen.</p>
   </div>`;
 }
@@ -606,21 +612,25 @@ function nowNext() {
 const ICON = {
   home: 'M4 11l8-7 8 7v9h-5v-6H9v6H4z', star: 'M12 3.2l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17.1 6.6 20l1.1-6.1-4.5-4.3 6.1-.8z',
   board: 'M4 4h7v9H4zM13 4h7v5h-7zM13 11h7v9h-7zM4 15h7v5H4z', folk: 'M8 11a3 3 0 100-6 3 3 0 000 6zm8 0a3 3 0 100-6 3 3 0 000 6zM2 20c0-3.3 2.7-6 6-6s6 2.7 6 6zm12.5 0c0-2-.7-3.8-1.9-5.2.9-.5 2-.8 3.4-.8 3.3 0 6 2.7 6 6z',
-  more: 'M4 6h16M4 12h16M4 18h16'
+  more: 'M4 6h16M4 12h16M4 18h16', mail: 'M3 6h18v12H3zM3 7l9 6 9-6', cal: 'M5 5h14v15H5zM5 9h14M9 3v4M15 3v4'
 };
+const mailUser = () => levelAtLeast('medlem');
 function insideTabs(r) {
-  const tabs = [['', 'dash', 'home'], ['program', 'myProgram', 'star'], ['tavla', 'board', 'board'], ['folk', 'folk', 'folk'], ['mer', 'more', 'more']];
-  return `<nav class="tabs" aria-label="${t('menu')}">${tabs.map(([h, k, ic]) =>
-    `<a href="#/inn${h ? '/' + h : ''}"${r.b === h ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="${ICON[ic]}"/></svg><span>${t(k)}</span></a>`).join('')}</nav>`;
+  const tabs = F2 && mailUser()
+    ? [['', 'dash', 'home'], ['epost', 'mail', 'mail'], ['kalender', 'calendar', 'cal'], ['tavla', 'board', 'board'], ['mer', 'more', 'more']]
+    : [['', 'dash', 'home'], ['program', 'myProgram', 'star'], ['tavla', 'board', 'board'], ['folk', 'folk', 'folk'], ['mer', 'more', 'more']];
+  return `<nav class="tabs" aria-label="${t('menu')}">${tabs.map(([h, k, ic]) => { const n = h === 'epost' ? unreadMail() : 0;
+    return `<a href="#/inn${h ? '/' + h : ''}"${r.b === h ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="${ICON[ic]}"/></svg><span>${t(k)}</span>${n ? `<span class="tabbadge">${n}</span>` : ''}</a>`; }).join('')}</nav>`;
 }
 function insideShell(r) {
   const pages = { '': iDash, program: iMyProgram, tavla: iBoard, folk: iFolk, kunngjoringer: iAnnounce, arshjul: iWheel, gruppe: iGroup,
     koordinering: iCoord, samreise: iRides, mer: iMore, verktoy: iTool, drift: iOps,
-    oppgaver: F2 ? iTasks : iDash, utlegg: F2 ? iReceipts : iDash, medlemskap: F2 ? iMember : iDash, moterom: F2 ? iVoice : iDash, husutleie: F2 ? iHouseAdmin : iDash };
+    oppgaver: F2 ? iTasks : iDash, epost: F2 ? iMail : iDash, kalender: F2 ? iCal : iDash, utlegg: F2 ? iReceipts : iDash, medlemskap: F2 ? iMember : iDash, moterom: F2 ? iVoice : iDash, husutleie: F2 ? iHouseAdmin : iDash };
   const p = persona();
   return `
   <header class="itop">
-    <a class="brand" href="#/inn"><img src="assets/logo.png" alt="" width="44" height="31"><span>Karlsøyfestivalen</span></a>
+    <a class="brand" href="#/" title="${t('toSite')}"><img src="assets/logo.png" alt="" width="44" height="31"><span>Karlsøyfestivalen</span></a>
+    <a class="homepill" href="#/inn"${r.b === '' ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="${ICON.home}"/></svg><span class="sr">${t('loggedIn')}: </span>${t('dash')}</a>
     <button class="who" data-act="sheet" aria-expanded="${STATE.sheet}"><span class="avatar">${p.name[0]}</span><span><strong>${p.name}</strong><span>${L(p.role)}</span></span></button>
   </header>
   ${STATE.sheet ? `<div class="sheet" role="dialog" aria-label="${t('viewAs')}">
@@ -669,12 +679,13 @@ function shortcuts() {
     ['mail', 'verv', 'M3 6h18v12H3zM3 7l9 6 9-6'], ['streaming', 'verv', 'M4 6h12v12H4zM16 10l5-3v10l-5-3'], ['editHandbook', 'medlem', 'M5 4h11l3 3v13H5zM8 9h8M8 13h8M8 17h5']];
   const list = all.filter(s => levelAtLeast(s[1]));
   return list.length ? `<section class="panel"><h2>${t('tools')}</h2><div class="tiles">${list.map(([k, , d]) =>
-    `<a href="#/inn/verktoy/${k}"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="${d}"/></svg>${t(k)}</a>`).join('')}</div><p class="small">${t('sso')}</p></section>` : '';
+    `<a href="${F2 && k === 'mail' ? '#/inn/epost' : F2 && k === 'calendar' ? '#/inn/kalender' : '#/inn/verktoy/' + k}"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="${d}"/></svg>${t(k)}</a>`).join('')}</div><p class="small">${t('sso')}</p></section>` : '';
 }
 function iDash() {
   const p = persona(), g = myGroups()[0], grp = DATA.groups[g];
   let html = `<div class="greet"><h1>${t('hello')}, ${p.name}</h1><p class="small">${during() ? t('demoClock') : STATE.when === 'for' ? t('modeBefore') : t('modeAfter')}</p></div>`;
   if (STATE.persona === 'drift') html += opsPanel(true);
+  if (F2 && mailUser() && !during()) html += mailPanel() + calPanel();
   const ann = announceFor(myGroups()).slice(0, 3);
   if (during()) {
     const nn = nowNext();
@@ -755,7 +766,7 @@ function wedge(r0, r1, a0, a1) {
   return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r1} ${r1} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}A${r0} ${r0} 0 0 0 ${x3.toFixed(1)} ${y3.toFixed(1)}Z`;
 }
 function wheelGroups() { return STATE.wGroup === 'mine' ? myGroups() : STATE.wGroup === 'all' ? Object.keys(DATA.groups) : [STATE.wGroup]; }
-const RAINBOW12 = ['#F0604C', '#F27A3D', '#F5932E', '#F7C531', '#C9E83A', '#4DF068', '#4DF0A0', '#4DF0D7', '#4DE4F0', '#6FA8F5', '#9B4FD0', '#F04DAF'];
+const RAINBOW12 = ['#F0604C', '#F27A3D', '#F5932E', '#F7C531', '#C9E83A', '#4DF068', '#4DF0A0', '#4DF0D7', '#4DE4F0', '#6FA8F5', '#B07FE0', '#F04DAF'];
 function wheelSvg() {
   const R0 = 50, W = 9.6, active = wheelGroups(), now = new Date();
   const ringR = g => R0 + RINGS.indexOf(g) * W + W / 2;
@@ -836,9 +847,10 @@ function iRides() {
 /* ---------- Mer ---------- */
 function iMore() {
   const links = [['#/inn/gruppe', t('yourGroup')], ['#/inn/kunngjoringer', t('announcements')], ['#/inn/samreise', t('rides')]];
+  if (F2 && mailUser()) links.unshift(['#/inn/program', t('myProgram')], ['#/inn/folk', t('folk')]);
   if (levelAtLeast('medlem')) links.push(['#/inn/arshjul', t('yearWheel')], ['#/inn/koordinering', t('coord')]);
   if (levelAtLeast('drift')) links.push(['#/inn/drift', t('ops')]);
-  const f2 = F2 ? [['#/inn/oppgaver', t('tasksTitle')], ['#/inn/moterom', t('meetingRooms')], ['#/inn/utlegg', t('receipts')], ['#/inn/medlemskap', t('membership')]].concat(myGroups().includes('styret') || levelAtLeast('drift') ? [['#/inn/husutleie', t('house')]] : []) : [];
+  const f2 = F2 ? [['#/inn/epost', t('mail')], ['#/inn/kalender', t('calendar')], ['#/inn/oppgaver', t('tasksTitle')], ['#/inn/moterom', t('meetingRooms')], ['#/inn/utlegg', t('receipts')], ['#/inn/medlemskap', t('membership')]].concat(myGroups().includes('styret') || levelAtLeast('drift') ? [['#/inn/husutleie', t('house')]] : []) : [];
   links.push(['#/handbok', t('handbook')], ['#/praktisk', t('practical')], ['#/', t('toSite')], ['#/om', t('about')]);
   return `<h1>${t('more')}</h1><ul class="morelist">${links.map(l => `<li><a href="${l[0]}">${l[1]}</a></li>`).join('')}</ul>
     ${f2.length ? `<h2>${t('phase2')}</h2><ul class="morelist">${f2.map(l => `<li><a href="${l[0]}">${l[1]} ${f2tag()}</a></li>`).join('')}</ul>` : ''}
@@ -911,6 +923,123 @@ function iVoice() {
   return `<h1>${t('meetingRooms')} ${f2tag()}</h1><p class="lead">${t('voiceLead')}</p>
     <ul class="voice">${DATA.voice.map(v => `<li><div><h3>${esc(v.name)}</h3>${v.note ? `<p class="small">${esc(v.note)}</p>` : ''}<p class="avatars">${v.who.map(n => `<span class="avatar sm" title="${esc(n)}">${esc(n[0])}</span>`).join('') || `<span class="small">${t('empty')}</span>`}</p></div><a class="btn ${v.who.length ? 'btn-dark' : ''}" href="#/inn/moterom">${t('joinDiscord')}</a></li>`).join('')}</ul>
     <p class="note">${t('voiceNote')}</p>`;
+}
+
+
+/* E-post: personlig adresse og fellesadresser, med tildeling og status */
+const myBoxes = () => DATA.mailboxes.filter(b => b.id === 'me' || (b.groups || []).some(g => myGroups().includes(g)) || (b.level && levelAtLeast(b.level)));
+const boxAddr = b => (b.id === 'me' ? persona().name.toLowerCase() + '@karlsoyfestivalen.no' : b.addr);
+const mailState = m => Object.assign({ status: m.status, who: m.who || null, read: !m.unread }, STATE.mailState[m.id] || {});
+const mailsIn = id => DATA.mails.filter(m => m.box === id).concat(id === 'sendt' ? STATE.sentMail : []);
+function unreadMail() { const ids = myBoxes().map(b => b.id); return DATA.mails.filter(m => ids.includes(m.box) && !mailState(m).read).length; }
+function mailPanel() {
+  const boxes = myBoxes().filter(b => b.id !== 'me');
+  return `<section class="panel mailpanel"><h2>${t('mail')} ${f2tag()}</h2><ul class="boxsum">${myBoxes().map(b => { const l = mailsIn(b.id), open = l.filter(m => b.id !== 'me' && mailState(m).status !== 'besvart').length, un = l.filter(m => !mailState(m).read).length;
+    return `<li><a href="#/inn/epost" data-act="mailbox" data-v="${b.id}"><strong>${esc(boxAddr(b))}</strong><span>${b.id === 'me' ? t('personal') : t('sharedFor', { g: (b.groups || []).map(groupName).join(', ') || t('ops') })}</span></a><span class="nums">${un ? `<span class="badge">${un}</span>` : ''}${open ? `<span class="small">${t('nOpen', { n: open })}</span>` : ''}</span></li>`; }).join('')}</ul>
+    ${boxes.length ? `<p class="small">${t('sharedNote')}</p>` : ''}<a class="more" href="#/inn/epost">${t('openMail')}</a></section>`;
+}
+function iMail(r) {
+  if (!mailUser()) return `<h1>${t('mail')}</h1><p class="empty">${t('forActive')}</p>`;
+  if (r.c === 'ny') return mailCompose();
+  if (r.c) return mailRead(r.c);
+  const boxes = myBoxes(), cur = boxes.find(b => b.id === STATE.mailBox) ? STATE.mailBox : 'me', box = boxes.find(b => b.id === cur);
+  const list = mailsIn(cur).slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return `<div class="mhead"><h1>${t('mail')} ${f2tag()}</h1><a class="btn btn-dark" href="#/inn/epost/ny">${t('newMail')}</a></div>
+    <div class="chips">${boxes.map(b => { const un = mailsIn(b.id).filter(m => !mailState(m).read).length;
+      return `<button data-act="mailbox" data-v="${b.id}" aria-pressed="${cur === b.id}">${esc(b.id === 'me' ? t('personal') : b.addr.split('@')[0] + '@')}${un ? ` <span class="badge sm">${un}</span>` : ''}</button>`; }).join('')}<button data-act="mailbox" data-v="sendt" aria-pressed="${STATE.mailBox === 'sendt'}">${t('sent')}</button></div>
+    <p class="small boxline">${STATE.mailBox === 'sendt' ? t('sent') : `${esc(boxAddr(box))} · ${cur === 'me' ? t('personal') : t('sharedFor', { g: (box.groups || []).map(groupName).join(', ') || t('ops') })}`}</p>
+    ${(STATE.mailBox === 'sendt' ? STATE.sentMail : list).length ? `<ul class="mlist">${(STATE.mailBox === 'sendt' ? STATE.sentMail.slice().reverse() : list).map(m => { const st = mailState(m);
+      return `<li class="${st.read ? '' : 'unread'}"><a href="#/inn/epost/${m.id}"><span class="avatar sm">${esc((m.from || m.to)[0])}</span><span class="mmain"><span class="mtop"><strong>${esc(m.from || t('to') + ' ' + m.to)}</strong><time>${esc(m.when)}</time></span><span class="msubj">${esc(m.subj)}</span><span class="msnip">${esc(m.body.split('\n')[0])}</span>
+        ${cur !== 'me' && STATE.mailBox !== 'sendt' ? `<span class="mstat"><span class="status s-${st.status}">${t('ms_' + st.status)}</span>${st.who ? `<span class="small">${esc(st.who)}</span>` : ''}</span>` : ''}</span></a></li>`; }).join('')}</ul>` : `<p class="empty">${t('noMail')}</p>`}
+    <section class="panel"><h2>${t('mailApps')}</h2><p>${t('mailAppsLead')}</p><p class="small">IMAP: mail.karlsoyfestivalen.no · SMTP: mail.karlsoyfestivalen.no:587</p></section>`;
+}
+function mailRead(id) {
+  const m = DATA.mails.find(x => x.id === id) || STATE.sentMail.find(x => x.id === id);
+  if (!m) return `<p class="empty">${t('noMail')}</p>`;
+  if (!STATE.mailState[id] || !STATE.mailState[id].read) { STATE.mailState[id] = Object.assign({}, STATE.mailState[id], { read: true }); saveState(); }
+  const st = mailState(m), box = DATA.mailboxes.find(b => b.id === m.box), shared = box && box.id !== 'me';
+  return `<p class="crumb"><a href="#/inn/epost">${t('mail')}</a></p>
+    <article class="mread"><p class="kicker">${box ? esc(boxAddr(box)) : t('sent')}</p><h1 class="msubj-h">${esc(m.subj)}</h1>
+    <p class="mfrom"><span class="avatar sm">${esc((m.from || m.to)[0])}</span><span><strong>${esc(m.from || persona().name)}</strong>${m.fromAddr ? ` &lt;${esc(m.fromAddr)}&gt;` : ''}<br><span class="small">${esc(m.when)}${m.to ? ' · ' + t('to') + ' ' + esc(m.to) : ''}</span></span></p>
+    ${m.body.split('\n').map(p => `<p>${esc(p)}</p>`).join('')}
+    ${m.attach ? `<p class="attach">📎 ${esc(m.attach)}</p>` : ''}</article>
+    ${shared ? `<section class="panel"><h2>${t('handling')}</h2><p><span class="status s-${st.status}">${t('ms_' + st.status)}</span> ${st.who ? t('takenBy', { n: st.who }) : t('noOneYet')}</p>
+      <p class="actions">${!st.who ? `<button class="btn btn-dark" data-act="mailtake" data-v="${id}">${t('takeMail')}</button>` : ''}${st.status !== 'besvart' ? `<button class="btn" data-act="maildone" data-v="${id}">${t('markAnswered')}</button>` : ''}</p>
+      <p class="small">${t('handlingNote')}</p></section>` : ''}
+    <p class="actions"><a class="btn btn-dark" href="#/inn/epost/ny" data-act="reply" data-v="${id}">${t('reply')}${shared ? ' ' + t('as') + ' ' + esc(box.addr) : ''}</a><button class="btn" data-act="mail2cal" data-v="${id}">${t('toCalendar')}</button><button class="btn" data-act="mail2task" data-v="${id}">${t('toTask')}</button></p>`;
+}
+function mailCompose() {
+  const re = STATE.replyTo && (DATA.mails.find(x => x.id === STATE.replyTo));
+  const fromBox = re ? re.box : 'me';
+  const tpl = DATA.mailTemplates;
+  return `<p class="crumb"><a href="#/inn/epost">${t('mail')}</a></p><h1>${re ? t('reply') : t('newMail')}</h1>
+    <form class="panel form" data-act="sendmail">
+      <label class="field"><span>${t('from')}</span><select name="from">${myBoxes().map(b => `<option value="${esc(boxAddr(b))}"${b.id === fromBox ? ' selected' : ''}>${esc(boxAddr(b))}</option>`).join('')}</select></label>
+      <label class="field"><span>${t('to')}</span><input name="to" required value="${re ? esc(re.fromAddr || '') : ''}" placeholder="${t('toPh')}" list="addrs"><datalist id="addrs">${myGroups().map(g => `<option value="${g}-liste@karlsoyfestivalen.no">`).join('')}<option value="alle-deltakere@karlsoyfestivalen.no"></datalist></label>
+      <label class="field"><span>${t('subject')}</span><input name="subj" required value="${re ? 'Re: ' + esc(re.subj) : ''}"></label>
+      <label class="field"><span>${t('template')}</span><select name="tpl" data-act="tpl"><option value="">${t('noTemplate')}</option>${tpl.map((x, i) => `<option value="${i}">${esc(x.name)}</option>`).join('')}</select></label>
+      <label class="field"><span>${t('message')}</span><textarea name="body" rows="8" id="mailbody">${re ? '\n\n' + esc(`${re.from} skrev:\n> ${re.body.split('\n')[0]}`) : ''}</textarea></label>
+      <p class="small">${t('factsInMail')}</p>
+      <button class="btn btn-dark">${t('send')}</button></form>`;
+}
+
+/* Kalender: frister fra håndboka, møter og egne avtaler, filtrert på grupper */
+const CAL_REPEAT = [
+  { g: 'koord', t: 'Koordinatormøte', wd: 1, every: 'week', time: '18:00', where: 'Discord · #koordinatorgruppa' },
+  { g: 'program', t: 'Møte i Program og teknisk', wd: 2, every: 'week', time: '19:00', where: 'Discord · #program-og-teknisk' },
+  { g: 'kjokken', t: 'Møte i Kjøkken og bar', wd: 3, every: 'first', time: '19:00', where: 'Discord · #kjøkken-og-bar' },
+  { g: 'miljo', t: 'Møte i Miljø og renhold', wd: 1, every: 'second', time: '19:30', where: 'Discord · #miljø-og-renhold' },
+  { g: 'styret', t: 'Styremøte', wd: 1, every: 'first', time: '20:00', where: 'Discord · #styret' },
+  { g: 'marked', t: 'Møte i Markedsføring', wd: 4, every: 'first', time: '19:00', where: 'Discord · #markedsføring' }
+];
+function calEvents(y, m) {
+  const ev = [], days = new Date(y, m, 0).getDate();
+  DATA.deadlines.filter(d => d.m === m).forEach(d => ev.push({ d: d.d, g: d.g, t: d.t, kind: 'frist' }));
+  for (let d = 1; d <= days; d++) {
+    const wd = new Date(y, m - 1, d).getDay(), nth = Math.ceil(d / 7);
+    CAL_REPEAT.forEach(r => { if (r.wd === wd && (r.every === 'week' || (r.every === 'first' && nth === 1) || (r.every === 'second' && nth === 2))) ev.push({ d, g: r.g, t: r.t, time: r.time, where: r.where, kind: 'mote' }); });
+    if (wd === 4 && d + 7 > days) ev.push({ d, g: 'koord', t: 'Medlemsmøte for alle', time: '19:00', where: 'Discord · Medlemsmøtet', kind: 'mote', all: true });
+  }
+  (DATA.bigMeetings || []).filter(x => x.y === y && x.m === m).forEach(x => ev.push(Object.assign({ kind: 'mote', all: true }, x)));
+  STATE.myEvents.filter(x => x.y === y && x.m === m).forEach(x => ev.push(Object.assign({ kind: 'egen' }, x)));
+  return ev.sort((a, b) => a.d - b.d || String(a.time || '').localeCompare(String(b.time || '')));
+}
+const calShown = e => e.all || e.kind === 'egen' || (STATE.calGroups === 'all' ? true : myGroups().includes(e.g));
+function calPanel() {
+  const now = new Date(), ev = calEvents(now.getFullYear(), now.getMonth() + 1).filter(calShown).filter(e => e.d >= now.getDate()).slice(0, 4);
+  return `<section class="panel"><h2>${t('calendar')} ${f2tag()}</h2>${ev.length ? `<ul class="agenda">${ev.map(agendaRow).join('')}</ul>` : `<p class="empty">${t('noEvents')}</p>`}<a class="more" href="#/inn/kalender">${t('openCal')}</a></section>`;
+}
+function agendaRow(e) {
+  const y = STATE.calY, m = STATE.calM, g = DATA.groups[e.g];
+  return `<li class="ev ev-${e.kind}" style="--g:${g ? g.c : 'var(--gra)'}"><time><strong>${e.d}.</strong><span>${e.time || t('allDay')}</span></time>
+    <div><strong>${esc(e.t)}</strong><span>${e.kind === 'frist' ? t('deadline') + ' · ' : ''}${g ? esc(g.n) : ''}${e.where ? ' · ' + esc(e.where) : ''}</span></div>
+    ${e.where && e.where.startsWith('Discord') ? `<a class="btn btn-small" href="#/inn/kalender">${t('join')}</a>` : ''}</li>`;
+}
+function iCal() {
+  if (!mailUser()) return `<h1>${t('calendar')}</h1><p class="empty">${t('forActive')}</p>`;
+  const y = STATE.calY, m = STATE.calM, ev = calEvents(y, m).filter(calShown);
+  const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate(), off = (first.getDay() + 6) % 7, today = new Date();
+  let cells = '';
+  for (let i = 0; i < off; i++) cells += '<span></span>';
+  for (let d = 1; d <= days; d++) {
+    const de = ev.filter(e => e.d === d), isT = today.getFullYear() === y && today.getMonth() + 1 === m && today.getDate() === d;
+    cells += `<button class="${isT ? 'today' : ''}${STATE.calDay === d ? ' sel' : ''}" data-act="calday" data-v="${d}" aria-label="${d}. ${monthName(m)}, ${de.length}"><span>${d}</span><i>${de.slice(0, 4).map(e => `<b style="background:${DATA.groups[e.g] ? DATA.groups[e.g].c : 'var(--gra)'}"></b>`).join('')}</i></button>`;
+  }
+  const list = STATE.calDay ? ev.filter(e => e.d === STATE.calDay) : ev;
+  return `<div class="mhead"><h1>${t('calendar')} ${f2tag()}</h1><button class="btn btn-dark" data-act="newevent">${STATE.newEvent ? t('close') : t('newMeeting')}</button></div>
+    ${STATE.newEvent ? `<form class="panel form" data-act="addevent">
+      <label class="field"><span>${t('what')}</span><input name="t" required placeholder="${t('meetingPh')}"></label>
+      <div class="row2"><label class="field"><span>${t('date')}</span><input name="date" type="date" required value="${y}-${String(m).padStart(2, '0')}-${String(STATE.calDay || today.getDate()).padStart(2, '0')}"></label><label class="field"><span>${t('time')}</span><input name="time" type="time" value="19:00"></label></div>
+      <label class="field"><span>${t('group')}</span><select name="g">${myGroups().map(g => `<option value="${g}">${esc(groupName(g))}</option>`).join('')}</select></label>
+      <label class="field"><span>${t('where')}</span><select name="where"><option>Discord · gruppas møterom</option><option>Festivalhuset</option><option>Discord og Festivalhuset</option></select></label>
+      <label class="switch"><input type="checkbox" name="invite" checked><span>${t('inviteList')}</span></label>
+      <button class="btn btn-dark">${t('create')}</button></form>` : ''}
+    <div class="cal-head"><button class="iconbtn" data-act="calmonth" data-v="-1" aria-label="${t('prev')}">‹</button><strong>${monthName(m)} ${y}</strong><button class="iconbtn" data-act="calmonth" data-v="1" aria-label="${t('next')}">›</button></div>
+    <div class="chips"><button data-act="calgroups" data-v="mine" aria-pressed="${STATE.calGroups !== 'all'}">${t('myGroups')}</button><button data-act="calgroups" data-v="all" aria-pressed="${STATE.calGroups === 'all'}">${t('allGroups')}</button></div>
+    <div class="cal mcal">${['ma', 'ti', 'on', 'to', 'fr', 'lø', 'sø'].map(d => `<span class="dow">${d}</span>`).join('')}${cells}</div>
+    <h2 class="daytitle">${STATE.calDay ? `${STATE.calDay}. ${monthName(m)}` : t('wholeMonth')}${STATE.calDay ? ` <button class="linkbtn" data-act="calday" data-v="0">${t('wholeMonth')}</button>` : ''}</h2>
+    ${list.length ? `<ul class="agenda">${list.map(agendaRow).join('')}</ul>` : `<p class="empty">${t('noEvents')}</p>`}
+    <section class="panel"><h2>${t('subscribe')}</h2><p>${t('subscribeLead')}</p><ul class="icslist">${myGroups().map(g => `<li><span class="swatch" style="background:${DATA.groups[g].c}"></span><code>karlsoyfestivalen.no/kalender/${g}.ics</code><button class="btn btn-small" data-act="toast" data-v="${esc(t('copied'))}">${t('copy')}</button></li>`).join('')}</ul></section>`;
 }
 
 /* Oppgaver med roller og status */
@@ -1045,6 +1174,16 @@ const ACTIONS = {
     if (!x.to) { x.to = persona().name; STATE.toast = t('toastTaken', { r: x.role }); }
     else { x.status = STATUS[Math.min(2, STATUS.indexOf(x.status) + 1)]; if (x.status === 'ferdig') STATE.toast = t('toastDone', { n: x.by }); }
   },
+  mailbox(v) { STATE.mailBox = v; },
+  reply(v) { STATE.replyTo = v; },
+  mailtake(v) { STATE.mailState[v] = Object.assign({}, STATE.mailState[v], { who: persona().name, status: 'tatt' }); STATE.toast = t('mailTaken'); },
+  maildone(v) { STATE.mailState[v] = Object.assign({}, STATE.mailState[v], { status: 'besvart', who: (STATE.mailState[v] || {}).who || persona().name }); STATE.toast = t('mailDone'); },
+  mail2cal(v) { STATE.newEvent = true; location.hash = '#/inn/kalender'; },
+  mail2task(v) { const m = DATA.mails.find(x => x.id === v); STATE.tasks.unshift({ id: 'o' + Date.now(), t: m.subj, role: t('mailFollow'), g: myGroups()[0], to: persona().name, by: persona().name, status: 'ny', due: '–' }); STATE.toast = t('taskFromMail'); },
+  calmonth(v) { STATE.calM += +v; if (STATE.calM < 1) { STATE.calM = 12; STATE.calY--; } if (STATE.calM > 12) { STATE.calM = 1; STATE.calY++; } STATE.calDay = 0; },
+  calday(v) { STATE.calDay = +v === STATE.calDay ? 0 : +v; },
+  calgroups(v) { STATE.calGroups = v; },
+  newevent() { STATE.newEvent = !STATE.newEvent; },
   becomemember() { STATE.member = true; STATE.toast = t('youAreMember'); },
   housemonth(v) { STATE.houseMonth = Math.min(12, Math.max(1, STATE.houseMonth + +v)); },
   houseunit(v) { STATE.houseUnit = +v; },
@@ -1078,6 +1217,7 @@ document.addEventListener('change', e => {
   else if (a === 'venue') STATE.venue = el.value;
   else if (a === 'hide') STATE.hidden = el.checked;
   else if (a === 'check') { const [g, i] = el.dataset.v.split('|'), key = g + E.next.from.slice(0, 4); STATE.checks[key] = STATE.checks[key] || []; toggle(STATE.checks[key], +i); }
+  else if (a === 'tpl') { const x = DATA.mailTemplates[+el.value]; const b = document.getElementById('mailbody'); if (x && b) b.value = factsPlain(x.body) + b.value; return; }
   else if (a === 'photo') {
     const f = el.files[0], ph = document.getElementById('photo-ph');
     if (f && ph) { const u = URL.createObjectURL(f); ph.innerHTML = `<img src="${u}" alt="${esc(t('receiptPhoto'))}">`; }
@@ -1101,8 +1241,10 @@ document.addEventListener('submit', e => {
   if (a === 'addtask') { STATE.tasks.unshift({ id: 'o' + Date.now(), t: fd.get('t'), role: fd.get('role'), g: fd.get('g'), to: fd.get('to') || null, by: persona().name, status: 'ny', due: fd.get('due') || '–' }); STATE.newTask = false; STATE.toast = fd.get('to') ? t('toastAssigned', { n: fd.get('to') }) : t('toastOpen'); }
   if (a === 'receipt') { STATE.receipts.unshift({ id: 'k' + Date.now(), t: fd.get('t'), kr: +fd.get('kr'), g: fd.get('g'), date: new Date().toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit', year: '2-digit' }), status: 'sendt' }); STATE.toast = t('receiptSent'); }
   if (a === 'join') { STATE.member = true; STATE.toast = t('youAreMember'); }
+  if (a === 'sendmail') { STATE.sentMail.push({ id: 'u' + Date.now(), box: 'sendt', from: '', to: fd.get('to'), subj: fd.get('subj'), body: fd.get('body') || '', when: t('justNow'), ts: Date.now() }); if (STATE.replyTo) STATE.mailState[STATE.replyTo] = Object.assign({}, STATE.mailState[STATE.replyTo], { status: 'besvart', who: persona().name }); STATE.replyTo = null; STATE.toast = t('mailSent', { f: fd.get('from') }); saveState(); location.hash = '#/inn/epost'; return; }
+  if (a === 'addevent') { const [y, m, d] = String(fd.get('date')).split('-').map(Number); STATE.myEvents.push({ y, m, d, t: fd.get('t'), time: fd.get('time'), g: fd.get('g'), where: fd.get('where') }); STATE.calY = y; STATE.calM = m; STATE.calDay = d; STATE.newEvent = false; STATE.toast = fd.get('invite') ? t('eventInvited', { l: fd.get('g') + '-liste@' }) : t('eventAdded'); }
   saveState(); render(true);
   const inp = document.getElementById('chat-in'); if (inp) inp.focus();
 });
-window.addEventListener('hashchange', () => { STATE.menu = false; STATE.sub = false; STATE.sheet = false; STATE.chat = false; STATE.chatId = null; STATE.repair = 0; render(false); });
+window.addEventListener('hashchange', () => { STATE.menu = false; STATE.sub = false; STATE.sheet = false; STATE.chat = false; STATE.chatId = null; STATE.repair = 0; if (route().c !== 'ny' && route().b === 'epost' && !route().c) STATE.replyTo = null; render(false); });
 render(false);

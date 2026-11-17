@@ -121,7 +121,7 @@ DATA.energy = { 1: { nb: 'Lav energi', en: 'Low energy', fr: 'Peu d’énergie',
 
 /* ---------- Driftsmeldinger (eksempler, slik de postes i Discord) ---------- */
 DATA.alerts = [
-  { id: 'a1', p: 'rod', when: 'fre. 14:02', what: 'Strømmeserveren svarer ikke.', why: 'Sendingen fra Storscenen i kveld stopper hvis den ikke er oppe før kl. 18.', fix: 'Kjør reparer. Den starter strømmetjenesten på nytt og sjekker disken.', link: 'Driftshåndboka › Strømming', notify: 'Driftsgruppa og koordinatorgruppa' },
+  { id: 'a1', p: 'rod', when: 'fre. 14:02', what: 'Strømmetjenesten (PeerTube) på serveren svarer ikke.', why: 'Sendingen fra Storscenen i kveld stopper hvis den ikke er oppe før kl. 18.', fix: 'Kjør reparer. Den starter strømmetjenesten på nytt og sjekker disken.', link: 'Driftshåndboka › Strømming', notify: 'Driftsgruppa og koordinatorgruppa' },
   { id: 'a2', p: 'gul', when: 'tor. 03:00', what: 'Disken på serveren er 86 prosent full.', why: 'Ved full disk stopper e-post og opplasting av filer.', fix: 'Kjør reparer for å rydde gamle logger, eller flytt opptak til lagringen for video.', link: 'Driftshåndboka › Lagring', notify: 'Driftsgruppa' },
   { id: 'a3', p: 'gul', when: 'ons. 09:00', what: 'Sist testet gjenoppretting er 35 dager gammel.', why: 'En sikkerhetskopi som ikke er testet, regnes ikke som en sikkerhetskopi.', fix: 'Den automatiske testen feilet i forrige måned. Se loggen og kjør testen på nytt.', link: 'Driftshåndboka › Sikkerhetskopier', notify: 'Driftsgruppa' },
   { id: 'a4', p: 'gronn', when: 'i natt 02:14', what: 'Sikkerhetskopi tatt, 38 GB.', why: 'Til orientering.', fix: 'Ingenting å gjøre.', link: 'Driftshåndboka › Sikkerhetskopier', notify: '' },
@@ -192,4 +192,54 @@ DATA.toolkit = [
   { id: 'visuelt', title: 'Bruk visuelt språk', lead: 'Tegninger, symboler og kart gjør avtaler håndfaste. Visuelt språk er demokratisk.', sheet: 'Arbeidsark: tegn organisasjonen deres' },
   { id: 'rytme', title: 'Bygg rytme inn i året', lead: 'En festival som bare finnes under arrangementet, mister fellesskapet. Lag faste møter som også reflekterer.', sheet: 'Arbeidsark: lag deres eget årshjul' },
   { id: 'politikk', title: 'Koble struktur og politikk', lead: 'Hvordan dere organiserer dere, er også det dere kommuniserer. La organisasjonsformen uttrykke verdiene.', sheet: 'Arbeidsark: verdier og valg' }
+];
+
+/* ---------- Fase 2: e-post og kalender (eksempeldata) ---------- */
+DATA.mailboxes = [
+  { id: 'me' },
+  { id: 'info', addr: 'info@karlsoyfestivalen.no', groups: ['koord'] },
+  { id: 'deltakere', addr: 'deltakere@karlsoyfestivalen.no', groups: ['koord', 'vertskap'] },
+  { id: 'booking', addr: 'booking@karlsoyfestivalen.no', groups: ['program'] },
+  { id: 'kjokken', addr: 'kjokken@karlsoyfestivalen.no', groups: ['kjokken'] },
+  { id: 'miljo', addr: 'miljo@karlsoyfestivalen.no', groups: ['miljo'] },
+  { id: 'faktura', addr: 'faktura@karlsoyfestivalen.no', groups: ['styret'] },
+  { id: 'drift', addr: 'drift@karlsoyfestivalen.no', groups: [], level: 'drift' }
+];
+DATA.mails = [
+  { id: 'm1', box: 'me', from: 'Koordinatorgruppa', fromAddr: 'koord-liste@karlsoyfestivalen.no', subj: 'Referat fra medlemsmøtet i oktober', when: 'fre. 10:12', ts: 9, unread: true, status: 'ny',
+    body: 'Hei alle sammen.\nReferatet ligger i fellesmappa under Møter/2026. Neste medlemsmøte er siste torsdag i november kl. 19 på Discord.\nHusk å legge inn saker innen onsdag.' },
+  { id: 'm2', box: 'me', from: 'Nora', fromAddr: 'nora@karlsoyfestivalen.no', subj: 'Kan du ta vakt i romjula?', when: 'tor. 21:40', ts: 8, status: 'ny',
+    body: 'Hei!\nVi trenger noen som kan åpne festivalhuset før romjulsmøtet 28. desember. Har du mulighet?' },
+  { id: 'm3', box: 'info', from: 'Kari N.', fromAddr: 'kari.n@example.no', subj: 'Kan vi ta med hund?', when: 'i dag 09:05', ts: 10, unread: true, status: 'ny',
+    body: 'Hei, vi er en familie som vil komme for første gang neste år. Kan vi ta med hunden vår?' },
+  { id: 'm4', box: 'info', from: 'Lokalavisa', fromAddr: 'tips@example.no', subj: 'Pressehenvendelse om festivalen 2027', when: 'ons. 14:20', ts: 7, unread: true, status: 'ny',
+    body: 'Vi vil gjerne lage en sak om festivalen som deltakerfestival. Hvem kan vi snakke med?' },
+  { id: 'm5', box: 'info', from: 'Per A.', fromAddr: 'per.a@example.no', subj: 'Leie av festivalhuset i mars', when: 'man. 11:00', ts: 5, status: 'tatt', who: 'Sindre',
+    body: 'Er huset ledig 13.–15. mars til et lite seminar for 20 personer?' },
+  { id: 'm6', box: 'deltakere', from: 'Jonas B.', fromAddr: 'jonasb@example.no', subj: 'Refusjon av deltakerpass', when: 'tir. 18:30', ts: 6, unread: true, status: 'ny',
+    body: 'Jeg kan dessverre ikke komme likevel. Er det mulig å få pengene tilbake?' },
+  { id: 'm7', box: 'booking', from: 'Trio fra Bodø', fromAddr: 'trio@example.no', subj: 'Søknad til åpen utlysning 2027', when: 'i dag 08:40', ts: 10, unread: true, status: 'ny', attach: 'presentasjon.pdf',
+    body: 'Hei! Vi er en trio som spiller nordnorske viser og vil gjerne søke om å spille på festivalen.\nSøknaden er også sendt inn via skjemaet.' },
+  { id: 'm8', box: 'booking', from: 'Puentes', fromAddr: 'booking@example.org', subj: 'Teknisk rider 2027', when: 'tor. 16:02', ts: 7, status: 'tatt', who: 'Aila', attach: 'rider-2027.pdf',
+    body: 'Vedlagt er oppdatert teknisk rider. Vi trenger to vokalmikrofoner mer enn i fjor.' },
+  { id: 'm9', box: 'kjokken', from: 'Grossisten', fromAddr: 'salg@example.no', subj: 'Tilbud på økologiske grønnsaker', when: 'ons. 09:30', ts: 6, unread: true, status: 'ny',
+    body: 'Vi kan tilby økologiske grønnsaker levert til Hansnes i festivaluka. Prisliste vedlagt.', attach: 'prisliste.pdf' },
+  { id: 'm10', box: 'miljo', from: 'Kommunen', fromAddr: 'renovasjon@example.no', subj: 'Søppelcontainer 2027', when: 'man. 13:10', ts: 4, status: 'besvart', who: 'Tuva',
+    body: 'Bekreftelse: container leveres festivalplassen 24. juli og hentes 3. august.' },
+  { id: 'm11', box: 'faktura', from: 'Lydfirmaet', fromAddr: 'faktura@example.no', subj: 'Faktura 2026-118', when: 'fre. 08:00', ts: 9, unread: true, status: 'ny', attach: 'faktura-2026-118.pdf',
+    body: 'Vedlagt faktura for lydanlegg, festivalen 2026. Forfall 30 dager.' },
+  { id: 'm12', box: 'drift', from: 'Overvåkingen', fromAddr: 'drift@karlsoyfestivalen.no', subj: '[Rød] Strømmetjenesten (PeerTube) svarer ikke', when: 'fre. 14:02', ts: 9, unread: true, status: 'ny',
+    body: 'Strømmetjenesten har ikke svart på 5 minutter.\nForslag: kjør reparer. Se Driftshåndboka › Strømming.' }
+];
+DATA.mailTemplates = [
+  { name: 'Svar på åpen utlysning: takk for søknaden', body: 'Hei!\nTusen takk for søknaden til Karlsøyfestivalen. Fristen er {openCallDeadline}, og alle får svar etter vårmøtet i april.\n\nHilsen Program og teknisk\n' },
+  { name: 'Praktisk info til deltakere', body: 'Hei!\nDeltakerpasset koster {price} kroner, og er gratis for alle under {freeUnder} år. Felles frokost er kl. {breakfast} og fellesmiddag kl. {dinner}.\n\nVelkommen!\n' },
+  { name: 'Bekreftelse til artist', body: 'Hei!\nVi gleder oss til å ha dere med. Kontrakten kommer i egen e-post, og spørsmål om reise og overnatting svarer vi på her.\n\n' }
+];
+DATA.bigMeetings = [
+  { y: 2026, m: 11, d: 7, t: 'Høstmøtet på Karlsøya', time: '12:00', g: 'koord', where: 'Festivalhuset og Discord' },
+  { y: 2026, m: 12, d: 28, t: 'Romjulsmøtet: håndbok, årshjul og tema', time: '12:00', g: 'koord', where: 'Festivalhuset og Discord' },
+  { y: 2027, m: 2, d: 28, t: 'Årsmøtet', time: '12:00', g: 'styret', where: 'Discord og Tromsø' },
+  { y: 2027, m: 4, d: 10, t: 'Vårmøtet', time: '12:00', g: 'koord', where: 'Festivalhuset og Discord' },
+  { y: 2027, m: 7, d: 27, t: 'Karlsøyfestivalen starter', time: '', g: 'koord', where: 'Karlsøya' }
 ];
