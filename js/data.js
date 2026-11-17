@@ -1,4 +1,4 @@
-/* Karlsøy 2.0 – prototype. All data ligger her, ett sted.
+/* Karlsøyfestivalen – prototype. All data ligger her, ett sted.
    Kilder: Programhefte 2026, Håndboka v9.1, karlsoyfestivalen.no, Hypa Poiesis-spesifikasjonen.
    Personer på innsiden, Tavla-kort, samreise og statuser er eksempeldata. */
 
@@ -23,14 +23,14 @@ DATA.edition = {
 
 /* ---------- Programkategorier (felles liste) ---------- */
 DATA.cats = {
-  musikk:   { c: '#e39a86', nb: 'Musikk', en: 'Music', fr: 'Musique', nl: 'Muziek' },
-  kunst:    { c: '#b3a3e6', nb: 'Kunst og teater', en: 'Art and theatre', fr: 'Art et théâtre', nl: 'Kunst en theater' },
-  politikk: { c: '#8fb4e8', nb: 'Politikk', en: 'Politics', fr: 'Politique', nl: 'Politiek' },
-  workshop: { c: '#8fcfae', nb: 'Workshops og annet', en: 'Workshops and more', fr: 'Ateliers et autres', nl: 'Workshops en meer' },
-  barn:     { c: '#eaa6c4', nb: 'Barn og ungdom', en: 'Children and youth', fr: 'Enfants et jeunes', nl: 'Kinderen en jongeren' },
-  maltid:   { c: '#e3c877', nb: 'Felles måltider', en: 'Shared meals', fr: 'Repas communs', nl: 'Gezamenlijke maaltijden' },
-  arbeid:   { c: '#b3b7c6', nb: 'Felles arbeid', en: 'Shared work', fr: 'Travail commun', nl: 'Gezamenlijk werk' },
-  blandet:  { c: '#8d8db8', nb: 'Blandet arrangement', en: 'Mixed event', fr: 'Événement mixte', nl: 'Gemengd evenement' }
+  musikk:   { c: '#F0604C', nb: 'Musikk', en: 'Music', fr: 'Musique', nl: 'Muziek' },
+  kunst:    { c: '#F04DAF', nb: 'Kunst og teater', en: 'Art and theatre', fr: 'Art et théâtre', nl: 'Kunst en theater' },
+  politikk: { c: '#9B4FD0', nb: 'Politikk', en: 'Politics', fr: 'Politique', nl: 'Politiek' },
+  workshop: { c: '#4DF0A0', nb: 'Workshops og annet', en: 'Workshops and more', fr: 'Ateliers et autres', nl: 'Workshops en meer' },
+  barn:     { c: '#F7C531', nb: 'Barn og ungdom', en: 'Children and youth', fr: 'Enfants et jeunes', nl: 'Kinderen en jongeren' },
+  maltid:   { c: '#F5932E', nb: 'Felles måltider', en: 'Shared meals', fr: 'Repas communs', nl: 'Gezamenlijke maaltijden' },
+  arbeid:   { c: '#BDB2AA', nb: 'Felles arbeid', en: 'Shared work', fr: 'Travail commun', nl: 'Gezamenlijk werk' },
+  blandet:  { c: '#4DE4F0', nb: 'Blandet arrangement', en: 'Mixed event', fr: 'Événement mixte', nl: 'Gemengd evenement' }
 };
 
 /* ---------- Steder (felles liste) ---------- */
@@ -192,9 +192,9 @@ DATA.items = [
   { id: 'kor-lyd', type: 'lyd', title: 'Lydopptak: Peacechoir på Storscenen', who: 'peacechoir', date: '08.08.26', lic: 'CC BY-NC', img: 'storscenen', mock: true, post: pid(4, 'Peacechoir – konsert'),
     body: ['Koret øvde tre ettermiddager i kirka og sang på Storscenen lørdag. Eksempel på et lydopptak. Lyd er nyttig på svakt nett.'] },
   { id: 'bilder26', type: 'bilder', title: 'Bilder fra festivalen', by: 'Karlsøyfestivalen', date: '2026', lic: 'Lisens ikke satt', img: 'i-ring',
-    gallery: ['i-ring', 'storscenen', 'plassen', 'mat', 'gruppemoter', 'nedrigg', 'morgenbevegelse', 'villsau'],
+    gallery: ['i-ring', 'storscenen', 'plassen', 'mat', 'gruppemoter', 'nedrigg', 'villsau', 'hb-langbord', 'hb-tommerstokk'],
     body: ['Bildene er hentet fra dagens nettside. Fotograf og lisens mangler på alle. I den nye løsningen er begge deler obligatoriske felt.'] },
-  { id: 'omsorg', type: 'artikkel', title: 'Å ta vare på hverandre', by: 'Karlsøyfestivalen', date: '2026', lic: 'CC BY-NC-ND', img: 'morgenbevegelse',
+  { id: 'omsorg', type: 'artikkel', title: 'Å ta vare på hverandre', by: 'Karlsøyfestivalen', date: '2026', lic: 'CC BY-NC-ND', img: 'hb-telt',
     body: ['Nytt i 2026: trygt rom-workshop i starten av festivalen, en hvilerom-lavvo ved felleshagen, omsorgsverter og et daglig omsorgs- og trygghetsteam.',
       'Dagens kontaktpersoner blir slått opp i Deltakerhuben. I den nye løsningen vises de også på forsiden din når du er logget inn.'] },
   { id: 'deltaker', type: 'artikkel', title: 'Slik fungerer deltakerfestivalen', by: 'Karlsøyfestivalen', date: '2026', lic: 'CC BY-NC-ND', img: 'gruppemoter',
@@ -238,7 +238,7 @@ DATA.threads = [
       { post: pid(1, 'Peacechoir') }, { post: pid(2, 'Peacechoir') }, { post: pid(3, 'Peacechoir') },
       { post: pid(4, 'Peacechoir – konsert') }, { item: 'kor-lyd' }
     ] },
-  { id: 'urverksted', kind: 'forlop', title: 'Kreativt urverksted for barn: fra verksted til visning', img: 'morgenbevegelse',
+  { id: 'urverksted', kind: 'forlop', title: 'Kreativt urverksted for barn: fra verksted til visning', img: 'hb-drage',
     lead: 'Tre dager med verksted i yurta, og visning for alle lørdag.',
     steps: [
       { post: pid(1, 'Kreativt urverksted') }, { post: pid(2, 'Kreativt urverksted') }, { post: pid(3, 'Kreativt urverksted') },
@@ -251,7 +251,7 @@ DATA.threads = [
       { post: pid(2, 'Åpning Galleri GÁLSÁ') },
       { when: 'Etter festivalen', t: 'Bilder av utstillingen', note: 'Foto av kunst legges ut fortløpende, med fotograf og lisens.', ex: true }
     ] },
-  { id: 'tidslinje', kind: 'samling', title: 'Karlsøya fra 1970-tallet til i dag', img: 'plassen',
+  { id: 'tidslinje', kind: 'tema', title: 'Karlsøya fra 1970-tallet til i dag', img: 'plassen',
     lead: 'Fra motkultur til deltakerfestival.',
     steps: [
       { when: '1970-tallet', t: 'Kunstnere, aktivister og idealister flytter til Karlsøya', note: 'De bygger et samfunn som utfordrer etablerte forestillinger.' },
@@ -262,7 +262,7 @@ DATA.threads = [
       { when: '2026', t: 'Deltakerhuben, Tavla og nye omsorgsstrukturer' }, { item: 'omsorg' },
       { when: '2027', t: 'Neste festival: 27. juli til 1. august' }
     ] },
-  { id: 'opencall', kind: 'samling', title: 'Fra åpen utlysning til scene', img: 'nedrigg',
+  { id: 'opencall', kind: 'tema', title: 'Fra åpen utlysning til scene', img: 'nedrigg',
     lead: 'Slik blir programmet til, år etter år.',
     steps: [
       { when: 'Desember–januar', t: 'Open call skrives og slippes', note: 'Senest 15. januar.' },
@@ -272,34 +272,34 @@ DATA.threads = [
       { when: '1. mai', t: 'Programslipp og plakat' },
       { when: 'Festivaluka', t: 'Alle på programmet møter i gruppa Program og teknikk hver dag' }
     ] },
-  { id: 'kom-i-gang', kind: 'samling', title: 'Ny på Karlsøyfestivalen?', img: 'i-ring',
+  { id: 'kom-i-gang', kind: 'tema', title: 'Ny på Karlsøyfestivalen?', img: 'i-ring',
     lead: 'Tre ting å lese før du kommer.',
     steps: [{ item: 'deltaker' }, { item: 'omsorg' }, { item: 'historie' }] }
 ];
 
 /* ---------- Grupper (fra håndboka) ---------- */
 DATA.groups = {
-  styret:   { c: '#9ed3a6', n: 'Styret og økonomi', kind: 'organ', d: 'Økonomisk, juridisk og administrativt ansvarlig. Velges av årsmøtet.',
+  styret:   { c: '#4DF068', n: 'Styret og økonomi', kind: 'organ', d: 'Økonomisk, juridisk og administrativt ansvarlig. Velges av årsmøtet.',
     tasks: ['Regnskap, likviditet og budsjett', 'Betalingsterminaler og vekslepenger', 'Forsikringer', 'Finne folk til bong-salget'] },
-  koord:    { c: '#f6c088', n: 'Koordinatorgruppa', kind: 'organ', d: 'Husker søknader, rapporter og tillatelser, og forbereder de åpne medlemsmøtene siste torsdag hver måned.',
+  koord:    { c: '#F5932E', n: 'Koordinatorgruppa', kind: 'organ', d: 'Husker søknader, rapporter og tillatelser, og forbereder de åpne medlemsmøtene siste torsdag hver måned.',
     tasks: ['Søknader og rapportering', 'Formelle tillatelser', 'Innkalle til medlemsmøter, høstmøte, romjulsmøte og vårmøte', 'Ta utgangspunkt i årshjulet på møtene'] },
-  program:  { c: '#f5e08a', n: 'Program og teknisk', kind: 'forb', d: 'Booker og tilrettelegger for alt innholdet. Undergrupper for booking, kunst, seminar, barn og ungdom og teknisk.',
+  program:  { c: '#F7C531', n: 'Program og teknisk', kind: 'forb', d: 'Booker og tilrettelegger for alt innholdet. Undergrupper for booking, kunst, seminar, barn og ungdom og teknisk.',
     tasks: ['Foreslå, kontakte og inngå skriftlige avtaler', 'Booke helhetlig, variert og innenfor manifestet', 'Holde budsjettet satt av årsmøtet', 'Skrive programtekster til markedsføring', 'Lage tidsplan og dag-til-dag-program', 'Bestille lyd, lys og aggregat og kryssjekke mot raidere'] },
-  marked:   { c: '#f6bfd2', n: 'Markedsføring', kind: 'forb', d: 'Plakat, programhefte, presse, sosiale medier og nettside. Mest å gjøre i forkant.',
+  marked:   { c: '#F04DAF', n: 'Markedsføring', kind: 'forb', d: 'Plakat, programhefte, presse, sosiale medier og nettside. Mest å gjøre i forkant.',
     tasks: ['Få noen til å lage plakat ut fra årets tema', 'Design og distribusjon av programhefte', 'Presseskriv og kontakt med journalister', 'Synliggjøre de som har gitt støtte', 'Oppdatere nettsida'] },
-  logistikk:{ c: '#c4c4d0', n: 'Logistikk', kind: 'forb', d: 'Buss, ferge og fly. Tilbudet til øya er begrenset, så ekstraturer må avtales i god tid.',
+  logistikk:{ c: '#BDB2AA', n: 'Logistikk', kind: 'forb', d: 'Buss, ferge og fly. Tilbudet til øya er begrenset, så ekstraturer må avtales i god tid.',
     tasks: ['Be om ekstra fergeanløp fredag, lørdag og søndag', 'Kjøpe ekstra bussturer, særlig søndag', 'Én ansvarlig booker flybilletter', 'Avtale ekstra parkering på Hansnes', 'Transport på øya med bil og traktor'] },
-  vertskap: { c: '#c6b3f0', n: 'Vertskap og vakt', kind: 'begge', d: 'Tar imot folk, står i porten og på kontoret, planlegger innkvartering og vakthold. Arbeidssentral under festivalen.',
+  vertskap: { c: '#9B4FD0', n: 'Vertskap og vakt', kind: 'begge', d: 'Tar imot folk, står i porten og på kontoret, planlegger innkvartering og vakthold. Arbeidssentral under festivalen.',
     tasks: ['Lage innkvarteringsliste sammen med bookinggruppa', 'Registrere deltakere og dele ut bånd', 'Infotavler og skilting av vann og do', 'Humørtog for de som jobber mye', 'Vaktliste: som oftest to i hver port', 'Opplæring i skjenkeregler'] },
-  kjokken:  { c: '#aecdf5', n: 'Kjøkken og bar', kind: 'begge', d: 'Lokale råvarer, vegetariske retter og sanking. Frokost og middag til alle, og mat til salg.',
+  kjokken:  { c: '#4DE4F0', n: 'Kjøkken og bar', kind: 'begge', d: 'Lokale råvarer, vegetariske retter og sanking. Frokost og middag til alle, og mat til salg.',
     tasks: ['Planlegge frokost og middag hele uka', 'Bestille varer og sjekke varetellinga først', 'Turnusplan: ikke bruk opp folk, fordel dem utover', 'Ta imot og lære opp nye i gruppa', 'Vaktlister for baren'] },
-  praktisk: { c: '#eeeaa0', n: 'Vaktmester og praktisk', kind: 'begge', d: 'Ly for folk og utstyr. Presenninger, lavvoer, ved, bålplasser og verktøy.',
+  praktisk: { c: '#C9E83A', n: 'Vaktmester og praktisk', kind: 'begge', d: 'Ly for folk og utstyr. Presenninger, lavvoer, ved, bålplasser og verktøy.',
     tasks: ['Presenninger på scene og tekniske telt', 'Sette opp barnelavvo', 'Portable verktøykasser', 'Bålplasser, sittegrupper og spiseplasser', 'Sette opp søppelteltet sammen med miljøgruppa'] },
-  miljo:    { c: '#b5e8a8', n: 'Miljø og renhold', kind: 'begge', d: 'En grønnere festival for hvert år. Sortering, kompost og en kultur der alle rydder.',
+  miljo:    { c: '#4DF0A0', n: 'Miljø og renhold', kind: 'begge', d: 'En grønnere festival for hvert år. Sortering, kompost og en kultur der alle rydder.',
     tasks: ['Plan for sortering: mat, plast, pant, brennbart, rest, metall', 'Sorteringssystem på campen og mot Sandvika', 'Male skilter og lage miljøstasjoner', 'Vaske doer og holde sanitære forhold', 'Retur av søppel og pant'] },
-  barn:     { c: '#aeeaf0', n: 'Barn og ungdom', kind: 'gjenn', d: 'Programmet settes opp sammen når festivalen åpner. Varmt måltid over bål hver dag.',
+  barn:     { c: '#4DF0D7', n: 'Barn og ungdom', kind: 'gjenn', d: 'Programmet settes opp sammen når festivalen åpner. Varmt måltid over bål hver dag.',
     tasks: ['Lage en helhetlig plan for dagene sammen', 'Sørge for at barn får medvirke', 'Barnemat over bål', 'Kino og popcorn i festivalhuset i helga'] },
-  media:    { c: '#f7c0ae', n: 'Mobilisering og media', kind: 'gjenn', d: 'Ny festivalgruppe i 2026. Står i programheftet, men mangler i håndboka.',
+  media:    { c: '#F0604C', n: 'Mobilisering og media', kind: 'gjenn', d: 'Ny festivalgruppe i 2026. Står i programheftet, men mangler i håndboka.',
     tasks: ['Beskrivelse mangler i håndboka'] }
 };
 DATA.festivalGroups = ['kjokken', 'vertskap', 'program', 'barn', 'miljo', 'media', 'praktisk'];
@@ -412,27 +412,3 @@ DATA.services = [
 
 DATA.care = { names: 'Dagens omsorgs- og trygghetsteam', where: 'Deltakerhuben, ved inngangen' };
 
-/* ---------- Meldinger (intern chat, eksempeldata) ----------
-   Asynkront: du skriver når det passer, og de andre svarer når de er innom. */
-DATA.chats = [
-  { id: 'g-kjokken', kind: 'gruppe', g: 'kjokken', msgs: [
-    ['Jonas', 'tor. 21:14', 'Vi trenger to til på frokost i morgen. Si fra her om du kan.'],
-    ['Ingvild', 'tor. 21:40', 'Jeg kan ta frokost. Stiller kl. 9.'],
-    ['Jonas', 'fre. 08:02', 'Supert. Brennesla er sanket og står på kjølerommet.']] },
-  { id: 'g-miljo', kind: 'gruppe', g: 'miljo', msgs: [
-    ['Tuva', 'ons. 16:20', 'Pantesekkene er levert i bussen ved inngangen.'],
-    ['Emil', 'ons. 18:05', 'Fint. Jeg maler skilt til stasjonen ved Sandvika i morgen.']] },
-  { id: 'g-program', kind: 'gruppe', g: 'program', msgs: [
-    ['Nora', 'tor. 23:10', 'Raideren for lørdag er kryssjekket. Én ekstra DI-boks trengs på Storscenen.'],
-    ['Aila', 'fre. 09:15', 'Noterer det. Kan noen bære stoler til Zapatista bar før kl. 16?']] },
-  { id: 'g-koord', kind: 'gruppe', g: 'koord', msgs: [
-    ['Sindre', 'man. 10:30', 'Sakliste til medlemsmøtet ligger i fellesmappa. Legg inn punkter innen onsdag.']] },
-  { id: 'alle', kind: 'beskjed', name: 'Beskjeder til alle deltakere', msgs: [
-    ['Vertskap og vakt', 'fre. 10:45', 'Ekstraferge fra Hansnes søndag kl. 15:50. Fellesmiddag i dag er kl. 17:00.'],
-    ['Miljø og renhold', 'tor. 12:00', 'Husk egen kopp og tallerken til fellesmåltidene.']] },
-  { id: 'd-1', kind: 'direkte', name: 'Ingvild', msgs: [
-    ['Ingvild', 'fre. 12:31', 'Har du nøkkelen til tørrlageret? Jeg finner ikke havregrynene.']] },
-  { id: 'b-1', kind: 'bidrag', name: 'Between Here and There', level: 'verv', msgs: [
-    ['Nora', 'ons. 14:02', 'Overnatting er ikke plassert ennå. Har vi et rom fra onsdag til søndag?'],
-    ['Aila', 'ons. 15:40', 'Jeg spør vertskapsgruppa og skriver her når det er avklart.']] }
-].map(c => Object.assign(c, { msgs: c.msgs.map(m => ({ from: m[0], when: m[1], t: m[2] })) }));

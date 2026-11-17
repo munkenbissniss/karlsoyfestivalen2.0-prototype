@@ -1,24 +1,32 @@
-/* Karlsøy 2.0 – statisk prototype. Ingen server, ingen sporing, ingen eksterne kall. */
+/* Karlsøyfestivalen – statisk prototype (utkast 2).
+   Ingen server, ingen sporing, ingen eksterne kall. PHASE settes i index.html (1) og fase2.html (2). */
+
+const PHASE = window.PHASE || 1;
+const F2 = PHASE >= 2;
 
 /* ---------- Tilstand ---------- */
-const STORE_KEY = 'karlsoy-proto-v1';
+const STORE_KEY = 'kf2-proto-v3';
 const STATE = Object.assign(
-  { lang: 'nb', persona: null, fest: true, fav: [], taken: [], group: null, sent: {}, read: {} },
+  { lang: 'nb', persona: null, when: 'under', fav: [], taken: [], group: null, checks: {}, hidden: false, sent: {}, read: {},
+    tasks: null, receipts: null, member: false, houseReq: [] },
   loadState(),
-  { day: 3, cat: 'all', wMonth: null, wGroup: 'mine', menu: false, sheet: false, subscribed: false, chat: false, chatId: null }
+  { day: 3, cat: 'all', venue: 'all', q: '', energy: 0, folkG: 'all', wMonth: null, wGroup: 'mine', menu: false, sub: false, sheet: false,
+    subscribed: false, chat: false, chatId: null, repair: 0, claimed: [], toast: '', newTask: false, houseMonth: 4, houseUnit: 0 }
 );
-function loadState() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; }
-}
+function loadState() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; } }
 function saveState() {
-  const { lang, persona, fest, fav, taken, group, sent, read } = STATE;
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ lang, persona, fest, fav, taken, group, sent, read })); } catch (e) { /* privat modus */ }
+  const { lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq } = STATE;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq })); } catch (e) { /* privat modus */ }
 }
+if (!STATE.tasks) STATE.tasks = JSON.parse(JSON.stringify(DATA.tasks));
+if (!STATE.receipts) STATE.receipts = JSON.parse(JSON.stringify(DATA.receipts));
 
 /* ---------- Hjelpere ---------- */
 const E = DATA.edition;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const facts = s => s.replace(/\{(\w+)\}/g, (m, k) => (k in E ? E[k] : m));
+/* Faste fakta settes inn fra ett sted, og merkes så man ser hvor de kommer fra. */
+const facts = s => esc(s).replace(/\{(\w+)\}/g, (m, k) => (k in E ? `<span class="fact" title="${esc(t('factFrom'))}: ${esc(DATA.factSource[k] || 'Håndboka')}">${esc(E[k])}</span>` : m));
+const factsPlain = s => String(s).replace(/\{(\w+)\}/g, (m, k) => (k in E ? E[k] : m));
 const fmt = (d, o) => new Intl.DateTimeFormat(LOCALE[STATE.lang], o).format(d);
 const dayDate = i => new Date(2026, 7, 4 + i);
 const iso = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
@@ -28,87 +36,126 @@ const venue = k => DATA.venues[k].n;
 const img = (k, alt) => `<img src="assets/img/${k}.jpg" alt="${esc(alt || '')}" loading="lazy">`;
 const persona = () => DATA.personas[STATE.persona || 'deltaker'];
 const myGroups = () => (STATE.persona === 'deltaker' && STATE.group ? [STATE.group] : persona().groups);
-const levelAtLeast = l => ['deltaker', 'medlem', 'verv', 'drift'].indexOf(persona().level) >= ['deltaker', 'medlem', 'verv', 'drift'].indexOf(l);
+const LEVELS = ['deltaker', 'medlem', 'verv', 'drift'];
+const levelAtLeast = l => LEVELS.indexOf(persona().level) >= LEVELS.indexOf(l);
 const monthName = (m, style) => fmt(new Date(2026, m - 1, 1), { month: style || 'long' });
-function range(a, b) {
-  const s = fmt(iso(a), { day: 'numeric', month: 'long' }), e = fmt(iso(b), { day: 'numeric', month: 'long', year: 'numeric' });
-  return s + ' – ' + e;
-}
+const f2tag = () => `<span class="f2" title="${esc(t('phase2Tip'))}">${t('phase2')}</span>`;
+function range(a, b) { return fmt(iso(a), { day: 'numeric', month: 'long' }) + ' – ' + fmt(iso(b), { day: 'numeric', month: 'long', year: 'numeric' }); }
 function nextDate(dl) {
   const now = new Date(); now.setHours(0, 0, 0, 0);
   let d = new Date(now.getFullYear(), dl.m - 1, dl.d);
   if (d < now) d = new Date(now.getFullYear() + 1, dl.m - 1, dl.d);
   return { date: d, days: Math.round((d - now) / 864e5) };
 }
-/* Demoklokke for festivaluka: fredag 7. august kl. 14:00 */
+/* Demoklokke under festivalen: fredag 7. august kl. 14:00 */
 const DEMO = { day: 3, min: 14 * 60 };
 const inDays = n => (n === 0 ? t('today') : n === 1 ? t('tomorrow') : t('inDays', { n }));
-
-/* ---------- Ruter ---------- */
-function route() {
-  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-  return { a: parts[0] || '', b: parts[1] || '', c: parts[2] || '' };
-}
-const SECTION = { '': 'gul', program: 'rosa', live: 'rosa', fra: 'gronn', forlop: 'cyan', bidragsytere: 'gul', handbok: 'gul', praktisk: 'gul', om: 'gul' };
-
-function render(keepScroll) {
-  const r = route();
-  const inside = r.a === 'inn';
-  if (inside && !STATE.persona) { STATE.persona = 'deltaker'; saveState(); }
-  document.documentElement.lang = STATE.lang;
-  document.body.dataset.section = inside ? 'inn' : (SECTION[r.a] || 'gul');
-  document.getElementById('app').innerHTML = inside ? insideShell(r) : outsideShell(r);
-  if (!keepScroll) window.scrollTo(0, 0);
-  const msgs = document.querySelector('.chat-msgs');
-  if (msgs) msgs.scrollTop = msgs.scrollHeight;
-}
-
-/* ====================================================================
-   UTSIDEN – nettsiden, bygget som en Hypa Poiesis-instans
-   Menyen bruker hverdagsord. Innholdsstykker («verk») og forløp («dialoger»)
-   er måter å organisere og oppleve innholdet på, ikke menypunkter.
-   ==================================================================== */
-const NAV = [['program', 'program'], ['bidragsytere', 'people'], ['fra', 'fromFestival'], ['handbok', 'handbook'], ['praktisk', 'practical']];
+const during = () => STATE.when === 'under';
 const byId = (list, id) => list.find(x => x.id === id);
 const post = id => byId(DATA.program, id);
 const item = id => byId(DATA.items, id);
 const itemBy = it => (it.who ? DATA.people[it.who].n : it.by);
 const threadsFor = test => DATA.threads.filter(th => th.steps.some(test));
 const whenOf = p => fmt(dayDate(p.day + (p.start && +p.start.slice(0, 2) < 6 ? 1 : 0)), { weekday: 'long' }) + (p.start ? ' ' + p.start : '');
+const groupName = g => DATA.groups[g] ? DATA.groups[g].n : g;
 
-function langSelect() {
-  return `<label class="lang"><span class="sr">${t('language')}</span><select data-act="lang" aria-label="${t('language')}">${Object.keys(LANGS).map(k =>
+/* Plassholder for portrett: bidragsyteren laster opp eget bilde med fotograf og lisens. */
+function portrait(k, size) {
+  const p = DATA.people[k], PAL = ['#F0604C', '#F5932E', '#F7C531', '#4DF0A0', '#4DE4F0', '#F04DAF', '#4DF0D7', '#C9E83A'], c = PAL[[...k].reduce((a, ch) => a + ch.charCodeAt(0), 0) % PAL.length], init = p.n.split(/\s+/).map(w => w[0]).slice(0, 2).join('');
+  const cols = ['#F0604C', '#F5932E', '#F7C531', '#4DF0A0', '#4DE4F0', '#9B4FD0'];
+  const arcs = cols.map((col, i) => `<path d="M${20 + i * 9} 200 A ${80 - i * 9} ${80 - i * 9} 0 0 1 ${180 - i * 9} 200" fill="none" stroke="${col}" stroke-width="7" opacity=".9"/>`).join('');
+  return `<svg class="portrait${size ? ' ' + size : ''}" viewBox="0 0 200 200" role="img" aria-label="${esc(t('photoComing'))}: ${esc(p.n)}"><rect width="200" height="200" fill="${c}"/>${arcs}<text x="100" y="98" text-anchor="middle">${esc(init)}</text></svg>`;
+}
+
+/* ---------- Ruter ---------- */
+function route() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  return { a: parts[0] || '', b: parts[1] || '', c: parts[2] || '' };
+}
+function render(keepScroll) {
+  const r = route(), inside = r.a === 'inn';
+  if (inside && !STATE.persona) { STATE.persona = 'deltaker'; saveState(); }
+  document.documentElement.lang = STATE.lang;
+  document.body.dataset.inside = inside ? '1' : '0';
+  document.getElementById('app').innerHTML = protoBar() + (inside ? insideShell(r) : outsideShell(r)) + (STATE.toast ? `<p class="toast" role="status">${esc(STATE.toast)}</p>` : '');
+  if (!keepScroll) window.scrollTo(0, 0);
+  const msgs = document.querySelector('.chat-msgs'); if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  if (STATE.toast) { clearTimeout(render.tt); render.tt = setTimeout(() => { STATE.toast = ''; const el = document.querySelector('.toast'); if (el) el.remove(); }, 3800); }
+}
+
+/* Prototype-stripe: velg tidspunkt og fase */
+function protoBar() {
+  const w = (v, k) => `<button data-act="when" data-v="${v}" aria-pressed="${STATE.when === v}">${t(k)}</button>`;
+  return `<div class="protobar">
+    <a href="#/om" class="pb-label">${t('proto')} · ${F2 ? t('phase2Proto') : t('phase1Proto')}</a>
+    <div class="pb-when" role="group" aria-label="${t('showAs')}"><span>${t('showAs')}:</span>${w('for', 'whenBefore')}${w('under', 'whenDuring')}${w('etter', 'whenAfter')}</div>
+    <a class="pb-switch" href="${F2 ? 'index.html' : 'fase2.html'}${location.hash}">${F2 ? t('toPhase1') : t('toPhase2')}</a>
+  </div>`;
+}
+
+/* ====================================================================
+   UTSIDEN – nettsiden
+   Håndboka og faste sider holdes år etter år. Årets festival (program, bidragsytere,
+   historier, blogg) er en egen utgave per år, bygget på prinsippene fra Hypa Poiesis.
+   ==================================================================== */
+const PROGRAM_SUB = [['program', 'thisHappens'], ['program/dag', 'dayByDay'], ['program/alle', 'allPosts'], ['bidragsytere', 'people']];
+function navItems() {
+  const l = [['historier', 'stories'], ['handbok', 'handbook'], ['praktisk', 'practical']];
+  return l;
+}
+function liveNow() { return during() && nowNext().now.length > 0; }
+
+function langSelect(cls) {
+  return `<label class="lang ${cls || ''}"><span class="sr">${t('language')}</span><select data-act="lang" aria-label="${t('language')}">${Object.keys(LANGS).map(k =>
     `<option value="${k}"${k === STATE.lang ? ' selected' : ''}>${LANGS[k]}</option>`).join('')}</select></label>`;
 }
-function ribbon() { return `<a class="ribbon" href="#/om">${t('proto')}</a>`; }
 
 function outsideShell(r) {
-  const pages = { '': pHome, program: r.b ? pPost : pProgram, fra: r.b ? pItem : pFeed, forlop: pThread,
-    bidragsytere: r.b ? pPerson : pPeople, handbok: r.b ? pGroup : pHandbook, praktisk: pPractical, live: pLive, om: pAbout };
+  const pages = {
+    '': pHome, program: r.b === 'dag' ? pDay : r.b === 'alle' ? pAll : r.b ? pPost : pHappens,
+    bidragsytere: r.b ? pPerson : pPeople, historier: r.b ? pThread : pStories, tema: pThread, innhold: pItem,
+    nytt: r.b ? pBlogPost : pBlog, handbok: r.b === 'gruppe' ? pGroup : r.b ? pChapter : pHandbook,
+    praktisk: pPractical, live: pLive, om: pAbout,
+    arkiv: F2 ? pArchive : pHome, verktoykasse: F2 ? pToolkit : pHome, huset: F2 ? pHouse : pHome, 'bli-medlem': F2 ? pJoin : pHome
+  };
+  const progActive = r.a === 'program' || r.a === 'bidragsytere';
   const page = (pages[r.a] || pHome)(r);
-  const note = t('contentNote');
-  return `${ribbon()}
+  const live = liveNow();
+  return `
   <header class="top">
-    <a class="brand" href="#/"><img src="assets/logo.png" alt="" width="46" height="33"><span>Karlsøyfestivalen</span></a>
-    <nav class="topnav" aria-label="${t('menu')}">${NAV.map(([h, k]) => `<a href="#/${h}"${r.a === h ? ' aria-current="page"' : ''}>${t(k)}</a>`).join('')}</nav>
+    <a class="brand" href="#/"><img src="assets/logo.png" alt="" width="52" height="37"><span>Karlsøyfestivalen</span></a>
+    <nav class="topnav" aria-label="${t('menu')}">
+      <div class="dd">
+        <button class="dd-btn" data-act="sub" aria-expanded="${STATE.sub}"${progActive ? ' aria-current="page"' : ''}>${t('program')}<svg viewBox="0 0 12 8" width="12" height="8" aria-hidden="true"><path d="M1 1l5 5 5-5"/></svg></button>
+        ${STATE.sub ? `<div class="dd-menu">${PROGRAM_SUB.map(([h, k]) => `<a href="#/${h}">${t(k)}</a>`).join('')}</div>` : ''}
+      </div>
+      ${navItems().map(([h, k]) => `<a href="#/${h}"${r.a === h ? ' aria-current="page"' : ''}${h === 'live' ? ' class="navlive"' : ''}>${h === 'live' ? '<span class="livedot"></span>' : ''}${t(k)}</a>`).join('')}
+    </nav>
     <div class="top-actions">
-      ${STATE.fest ? `<a class="livepill" href="#/live">${t('liveNow')}</a>` : ''}
-      <a class="btn btn-light" href="#/inn">${t('login')}</a>
+      ${live ? `<a class="livepill" href="#/live"><span class="livedot"></span>${t('live')}</a>` : ''}
+      <a class="btn btn-small" href="#/inn">${t('login')}</a>
       <button class="burger" data-act="menu" aria-expanded="${STATE.menu}" aria-label="${t('menu')}"><span></span><span></span><span></span></button>
     </div>
   </header>
   ${STATE.menu ? `<nav class="sheetmenu" aria-label="${t('menu')}">
-      ${STATE.fest ? `<a href="#/live" class="live">${t('liveNow')}</a>` : ''}
-      ${NAV.map(([h, k]) => `<a href="#/${h}">${t(k)}</a>`).join('')}
-      <a href="#/om">${t('about')}</a>
+      ${live ? `<a href="#/live" class="live"><span class="livedot"></span>${t('liveNow')}</a>` : ''}
+      <p class="sm-head">${t('program')}</p>
+      ${PROGRAM_SUB.map(([h, k]) => `<a class="sm-sub" href="#/${h}">${t(k)}</a>`).join('')}
+      ${navItems().filter(n => n[0] !== 'live').map(([h, k]) => `<a href="#/${h}">${t(k)}</a>`).join('')}
+      <a href="#/nytt">${t('blog')}</a>
+      ${F2 ? `<a href="#/arkiv">${t('archive')} ${f2tag()}</a><a href="#/verktoykasse">${t('toolkit')} ${f2tag()}</a>` : ''}
       <div class="sheetmenu-foot">${langSelect()}<button class="btn" data-act="menu">${t('close')}</button></div>
     </nav>` : ''}
-  <main id="main">${note ? `<p class="note wrap">${note}</p>` : ''}${page}</main>
-  <footer class="foot">
+  <main id="main">${STATE.lang !== 'nb' ? `<p class="note wrap">${t('contentNote')}</p>` : ''}${page}</main>
+  ${footer()}`;
+}
+function footer() {
+  return `<footer class="foot">
+    <div class="rainbow-arc" aria-hidden="true"></div>
     <div class="wrap foot-grid">
-      <div><strong>Karlsøyfestivalen</strong><p>${range(E.next.from, E.next.to)}</p><p><a href="mailto:${E.email}">${E.email}</a></p></div>
-      <nav aria-label="footer">${NAV.map(([h, k]) => `<a href="#/${h}">${t(k)}</a>`).join('')}<a href="#/om">${t('about')}</a></nav>
-      <div>${langSelect()}<p class="small">Hypa Poiesis</p></div>
+      <div><img src="assets/logo.png" alt="" width="64" height="45"><p><strong>Karlsøyfestivalen</strong><br>${range(E.next.from, E.next.to)}</p><p><a href="mailto:${E.email}">${E.email}</a></p></div>
+      <nav aria-label="${t('footerNav')}">${PROGRAM_SUB.map(([h, k]) => `<a href="#/${h}">${t(k)}</a>`).join('')}<a href="#/historier">${t('stories')}</a><a href="#/nytt">${t('blog')}</a><a href="#/handbok">${t('handbook')}</a><a href="#/praktisk">${t('practical')}</a>${F2 ? `<a href="#/arkiv">${t('archive')}</a><a href="#/verktoykasse">${t('toolkit')}</a><a href="#/huset">${t('house')}</a><a href="#/bli-medlem">${t('joinAssoc')}</a>` : ''}<a href="#/om">${t('about')}</a></nav>
+      <div>${langSelect()}<p class="small">${t('builtWith')}</p></div>
     </div>
   </footer>`;
 }
@@ -116,35 +163,50 @@ function outsideShell(r) {
 /* ---------- Forside ---------- */
 function pHome() {
   const stories = DATA.threads.filter(th => th.kind === 'forlop').slice(0, 3);
+  const themes = DATA.threads.filter(th => th.kind === 'tema');
+  const posts = DATA.posts.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
+  const heroDate = STATE.when === 'under' ? range(E.from, E.to) : range(E.next.from, E.next.to);
+  const kick = STATE.when === 'under' ? t('festivalOn') : t('nextFestival');
   return `
-  <section class="hero wrap">
-    <div class="hero-text">
-      <p class="hero-date">${t('nextFestival')}: <strong>${range(E.next.from, E.next.to)}</strong></p>
-      <h1>${t('heroTitle')}</h1>
-      <p class="lead">${t('heroLead')}</p>
-      <p class="actions"><a class="btn btn-dark" href="#/program">${t('seeProgram')}</a><a class="btn" href="#/fra/deltaker">${t('howJoin')}</a></p>
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-text">
+        <p class="hero-kick">${kick}</p>
+        <p class="hero-date">${heroDate}</p>
+        <h1>${t('heroTitle')}</h1>
+        <p class="lead">${t('heroLead')}</p>
+        <p class="actions">${STATE.when === 'under' ? `<a class="btn btn-dark" href="#/program">${t('thisHappens')}</a>` : `<a class="btn btn-dark" href="${'#/praktisk'}">${t('buyPass')}</a>`}<a class="btn" href="#/handbok/delta">${t('howJoin')}</a></p>
+      </div>
+      <figure class="hero-img">${img('hb-utsikt', 'Karlsøya sett fra fjellet')}<figcaption>${t('photoBy')} Håndboka v9.1</figcaption></figure>
     </div>
-    <figure class="hero-img">${img('plassen', 'Festivalplassen på Karlsøya')}<figcaption>${t('thanks')}</figcaption></figure>
   </section>
-  ${STATE.fest ? liveBanner() : ''}
+  ${liveNow() ? liveBanner() : ''}
   <section class="wrap block">
-    <div class="block-head"><h2>${t('latest')}</h2><a href="#/fra">${t('seeAll')}</a></div>
-    <div class="grid grid-4">${DATA.items.slice(0, 4).map(itemCard).join('')}</div>
+    <div class="block-head"><h2>${t('latest')}</h2><a href="#/nytt">${t('allNews')}</a></div>
+    <div class="grid grid-4">${posts.map(postCard).join('')}</div>
+  </section>
+  <section class="threadband">
+    <div class="wrap">
+      <div class="block-head"><h2>${t('enterStory')}</h2><a href="#/historier">${t('allStories')}</a></div>
+      <p class="blocklead">${t('enterStoryLead')}</p>
+      <div class="grid grid-3">${stories.map(threadCard).join('')}</div>
+    </div>
   </section>
   <section class="wrap block">
-    <div class="block-head"><h2>${t('stories')}</h2></div>
-    <p class="blocklead">${t('storiesLead')}</p>
-    <div class="grid grid-3">${stories.map(threadCard).join('')}</div>
+    <div class="block-head"><h2>${t('themes')}</h2></div>
+    <p class="blocklead">${t('themesLead')}</p>
+    <div class="themes">${themes.map(themeChip).join('')}</div>
   </section>
   <section class="manifest"><div class="wrap">
     <h2>${t('manifest')}</h2>
     ${item('manifest').body.map(p => `<p>${esc(p)}</p>`).join('')}
   </div></section>
+  ${F2 ? memberCta() : ''}
   ${newsletter()}`;
 }
 function liveBanner() {
   const n = nowNext().now[0];
-  return n ? `<a class="livebar" href="#/live"><span class="livedot"></span><strong>${t('liveNow')}</strong><span>${esc(n.title)}, ${esc(venue(n.venue))}</span></a>` : '';
+  return n ? `<a class="livebar wrap" href="#/live"><span class="livedot"></span><strong>${t('liveNow')}</strong><span>${esc(n.title)}, ${esc(venue(n.venue))}</span></a>` : '';
 }
 function newsletter() {
   return `<section class="wrap block news">
@@ -153,8 +215,15 @@ function newsletter() {
       `<form data-act="subscribe"><label><span class="sr">${t('email')}</span><input type="email" required placeholder="${t('email')}" autocomplete="email"></label><button class="btn btn-dark">${t('subscribe')}</button></form>`}
   </section>`;
 }
+function postCard(p) {
+  return `<a class="card post" href="#/nytt/${p.id}"><div class="card-img">${img(p.img, '')}</div>
+    <div class="card-body"><p class="kicker">${fmt(iso(p.date), { day: 'numeric', month: 'long' })}</p><h3>${esc(p.title)}</h3><p>${facts(p.lead)}</p></div></a>`;
+}
+function themeChip(th) {
+  return `<a class="theme" href="#/tema/${th.id}"><span class="theme-img">${img(th.img, '')}</span><span><strong>${esc(th.title)}</strong><span>${esc(th.lead)}</span></span></a>`;
+}
 
-/* ---------- Program ---------- */
+/* ---------- Program: «Dette skjer» tilpasser seg tiden ---------- */
 function starBtn(id) {
   const on = STATE.fav.includes(id);
   return `<button class="star" data-act="fav" data-v="${id}" aria-pressed="${on}" aria-label="${on ? t('saved') : t('save')}" title="${on ? t('saved') : t('save')}">
@@ -165,16 +234,46 @@ function progItem(p, opts) {
   const state = o.state ? `<span class="tag tag-live">${o.state}</span>` : '';
   const title = (o.prefix ? o.prefix + ': ' : '') + p.title;
   const more = p.id && threadsFor(s => s.post === p.id).length;
-  return `<li class="pi">
+  return `<li class="pi" style="--c:${c.c}">
     <div class="pi-time">${p.start ? `${p.start}<span>${p.end}</span>` : `<span class="allday">${t('allDay')}</span>`}</div>
     <div class="pi-main">
       <h3>${state}${p.id ? `<a href="#/program/${p.id}">${esc(title)}</a>` : esc(title)}</h3>
       <p class="pi-venue">${esc(venue(p.venue))}</p>
-      <p class="pi-cat"><span class="dot" style="background:${c.c}"></span>${L(c)}${who ? ` <a href="#/bidragsytere/${p.who}">${esc(who.n)}</a>` : ''}</p>
-      ${more ? `<p class="pi-more">${t('wholeStory')}</p>` : ''}
+      <p class="pi-cat"><span class="dot" style="background:${c.c}"></span>${L(c)}${who ? ` · <a href="#/bidragsytere/${p.who}">${esc(who.n)}</a>` : ''}</p>
+      ${more ? `<p class="pi-more">${t('hasStory')}</p>` : ''}
     </div>
     ${p.id ? starBtn(p.id) : ''}
   </li>`;
+}
+function progTabs(active) {
+  return `<nav class="subtabs" aria-label="${t('program')}">${PROGRAM_SUB.map(([h, k]) => `<a href="#/${h}"${active === h ? ' aria-current="page"' : ''}>${t(k)}</a>`).join('')}</nav>`;
+}
+function pHappens() {
+  const head = `<div class="wrap narrow"><h1>${t('program')} ${E.year}</h1>${progTabs('program')}</div>`;
+  if (STATE.when === 'for') {
+    const headliners = ['ellamarie', 'balto', 'puentes', 'prestegaard', 'tomren', 'slave'];
+    return head + `<div class="wrap narrow">
+      <p class="lead">${t('beforeLead')}</p>
+      <div class="countdown"><strong>${range(E.from, E.to)}</strong><span>${t('releaseNote')}</span></div>
+      <h2>${t('comingArtists')}</h2></div>
+      <div class="wrap"><div class="pgrid">${headliners.map(personCard).join('')}</div>
+      <p class="center"><a class="btn" href="#/bidragsytere">${t('allPeople')}</a> <a class="btn btn-dark" href="#/program/dag">${t('dayByDay')}</a></p></div>`;
+  }
+  if (STATE.when === 'etter') {
+    const media = DATA.items.filter(i => ['video', 'lyd', 'bilder', 'presse'].includes(i.type));
+    return head + `<div class="wrap narrow"><p class="lead">${t('afterLead')}</p></div>
+      <div class="wrap"><h2>${t('recorded')}</h2><div class="grid grid-4">${media.map(itemCard).join('')}</div>
+      <h2>${t('enterStory')}</h2><div class="grid grid-3">${DATA.threads.filter(th => th.kind === 'forlop').map(threadCard).join('')}</div>
+      <p class="center"><a class="btn" href="#/program/alle">${t('allPosts')}</a></p></div>`;
+  }
+  const nn = nowNext();
+  const rest = DATA.program.filter(p => p.day === DEMO.day && p.start && sortKey(p.start) > DEMO.min).sort((a, b) => sortKey(a.start) - sortKey(b.start));
+  return head + `<div class="wrap narrow">
+    <p class="small clock">${t('demoClock')}</p>
+    <section class="nowbox"><h2>${t('now')}</h2>${nn.now.length ? `<ul class="plist">${nn.now.map(x => progItem(x, { state: t('liveNow') })).join('')}</ul>` : `<p>${t('nothingNow')}</p>`}</section>
+    <h2>${t('laterToday')}</h2><ul class="plist">${rest.map(x => progItem(x)).join('')}</ul>
+    <details class="daily"><summary>${t('everyDay')} (${DATA.daily.length})</summary><ul class="plist">${DATA.daily.map(p => progItem(p)).join('')}</ul></details>
+  </div>`;
 }
 function dayTabs() {
   return `<div class="daytabs" role="tablist">${[0, 1, 2, 3, 4, 5].map(i =>
@@ -186,13 +285,10 @@ function catChips() {
     ${Object.keys(DATA.cats).map(k => `<button data-act="cat" data-v="${k}" aria-pressed="${STATE.cat === k}"><span class="dot" style="background:${cat(k).c}"></span>${L(cat(k))}</button>`).join('')}
   </div>`;
 }
-function pProgram() {
+function pDay() {
   const items = DATA.program.filter(p => p.day === STATE.day && (STATE.cat === 'all' || p.cat === STATE.cat)).sort((a, b) => sortKey(a.start) - sortKey(b.start));
   const daily = DATA.daily.filter(p => STATE.cat === 'all' || p.cat === STATE.cat);
-  return `<div class="wrap narrow">
-    <h1>${t('program')} ${E.year}</h1>
-    <p class="lead">${range(E.from, E.to)}</p>
-  </div>
+  return `<div class="wrap narrow"><h1>${t('program')} ${E.year}</h1>${progTabs('program/dag')}<p class="lead">${range(E.from, E.to)}</p></div>
   <div class="sticky"><div class="wrap narrow">${dayTabs()}${catChips()}</div></div>
   <div class="wrap narrow">
     <h2 class="daytitle">${fmt(dayDate(STATE.day), { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
@@ -200,11 +296,25 @@ function pProgram() {
     ${daily.length && STATE.day < 5 ? `<details class="daily"><summary>${t('everyDay')} (${daily.length})</summary><ul class="plist">${daily.map(p => progItem(p)).join('')}</ul></details>` : ''}
   </div>`;
 }
+function pAll() {
+  const q = STATE.q.trim().toLowerCase();
+  const list = DATA.program.filter(p => (STATE.cat === 'all' || p.cat === STATE.cat) && (STATE.venue === 'all' || p.venue === STATE.venue)
+    && (!q || (p.title + ' ' + (p.who ? DATA.people[p.who].n : '')).toLowerCase().includes(q)))
+    .sort((a, b) => a.day - b.day || sortKey(a.start) - sortKey(b.start));
+  return `<div class="wrap narrow"><h1>${t('program')} ${E.year}</h1>${progTabs('program/alle')}
+    <div class="filters">
+      <label class="field"><span>${t('search')}</span><input type="search" data-act="q" value="${esc(STATE.q)}" placeholder="${t('searchPh')}"></label>
+      <label class="field"><span>${t('venue')}</span><select data-act="venue"><option value="all">${t('allVenues')}</option>${Object.keys(DATA.venues).map(k => `<option value="${k}"${STATE.venue === k ? ' selected' : ''}>${esc(venue(k))}</option>`).join('')}</select></label>
+    </div>${catChips()}
+    <p class="small">${t('nPosts', { n: list.length })}</p>
+    ${list.length ? `<ul class="plist">${list.map(p => progItem(p, { prefix: fmt(dayDate(p.day), { weekday: 'short' }) })).join('')}</ul>` : `<p class="empty">${t('noResults')}</p>`}
+  </div>`;
+}
 
-/* ---------- Én programpost: bidragsyter, tid og sted, og hele forløpet ---------- */
+/* ---------- Én programpost ---------- */
 function personBox(k) {
   const p = DATA.people[k];
-  return `<a class="personbox" href="#/bidragsytere/${k}"><span class="avatar">${esc(p.n[0])}</span><span><strong>${esc(p.n)}</strong><span>${esc(p.b)}</span></span></a>`;
+  return `<a class="personbox" href="#/bidragsytere/${k}">${portrait(k, 'sm')}<span><strong>${esc(p.n)}</strong><span>${esc(p.b)}</span></span></a>`;
 }
 function pPost(r) {
   const p = post(r.b) || DATA.program[0], c = cat(p.cat);
@@ -212,85 +322,87 @@ function pPost(r) {
   const others = p.who ? DATA.program.filter(x => x.who === p.who && x.id !== p.id) : [];
   const made = DATA.items.filter(i => i.post === p.id);
   return `<article class="wrap narrow">
-    <p class="crumb"><a href="#/program">${t('program')}</a></p>
+    <p class="crumb"><a href="#/program/dag">${t('program')}</a></p>
     <p class="kicker"><span class="dot" style="background:${c.c}"></span>${L(c)}</p>
     <h1>${esc(p.title)}</h1>
-    <div class="when">
+    <div class="when" style="--c:${c.c}">
       <div><strong>${fmt(dayDate(p.day), { weekday: 'long', day: 'numeric', month: 'long' })}</strong><span>${p.start ? p.start + '–' + p.end : t('allDay')}</span></div>
       <div><strong>${esc(venue(p.venue))}</strong><span>${esc(DATA.venues[p.venue].d)}</span></div>
       ${starBtn(p.id)}
     </div>
     ${p.who ? personBox(p.who) : ''}
-    ${ths.map(th => `<section class="story"><h2>${t('wholeStory')}</h2><p>${esc(th.lead)}</p>${stepsList(th, p.id)}<a class="more" href="#/forlop/${th.id}">${esc(th.title)}</a></section>`).join('')}
-    ${!ths.length && made.length ? `<h2>${t('fromFestival')}</h2><div class="grid grid-2">${made.map(itemCard).join('')}</div>` : ''}
-    ${!ths.length && others.length ? `<h2>${t('moreFrom')} ${esc(DATA.people[p.who].n)}</h2><ul class="plist">${others.map(x => progItem(x, { prefix: fmt(dayDate(x.day), { weekday: 'long' }) })).join('')}</ul>` : ''}
+    ${ths.map(th => `<section class="story"><h2>${t('wholeStory')}</h2><p>${esc(th.lead)}</p>${stepsList(th, p.id)}<a class="more" href="#/historier/${th.id}">${esc(th.title)}</a></section>`).join('')}
+    ${!ths.length && made.length ? `<h2>${t('madeHere')}</h2><div class="grid grid-2">${made.map(itemCard).join('')}</div>` : ''}
+    ${others.length ? `<h2>${t('moreFrom')} ${esc(DATA.people[p.who].n)}</h2><ul class="plist">${others.map(x => progItem(x, { prefix: fmt(dayDate(x.day), { weekday: 'long' }) })).join('')}</ul>` : ''}
   </article>`;
 }
 
-/* ---------- Forløp og samlinger ---------- */
+/* ---------- Historier og temaer ---------- */
 function stepsList(th, currentId) {
   return `<ol class="steps">${th.steps.map(s => {
-    let when, tag, title, note = s.note || '', href = '', ex = s.ex;
-    if (s.post) { const p = post(s.post); when = whenOf(p); tag = t('programPost'); title = p.title; href = '#/program/' + p.id; note = note || venue(p.venue); }
-    else if (s.item) { const it = item(s.item); when = it.date; tag = L(DATA.itemTypes[it.type]); title = it.title; href = '#/fra/' + it.id; ex = it.mock; note = note || itemBy(it); }
+    let when, tag, title, note = s.note || '', href = '', ex = s.ex, color = '';
+    if (s.post) { const p = post(s.post); when = whenOf(p); tag = t('programPost'); title = p.title; href = '#/program/' + p.id; note = note || venue(p.venue); color = cat(p.cat).c; }
+    else if (s.item) { const it = item(s.item); when = it.date; tag = L(DATA.itemTypes[it.type]); title = it.title; href = '#/innhold/' + it.id; ex = it.mock; note = note || itemBy(it); }
     else { when = s.when; tag = ''; title = s.t; }
     const cur = s.post && s.post === currentId;
-    return `<li class="${cur ? 'cur' : ''}${s.item ? ' has-item' : ''}">
+    return `<li class="${cur ? 'cur' : ''}${s.item ? ' has-item' : ''}"${color ? ` style="--c:${color}"` : ''}>
       <p class="step-when">${esc(when)}</p>
       <h3>${href && !cur ? `<a href="${href}">${esc(title)}</a>` : esc(title)}</h3>
       <p class="step-note">${tag ? `<span class="tag">${tag}</span> ` : ''}${ex ? `<span class="tag tag-ex">${t('example')}</span> ` : ''}${esc(note)}</p>
     </li>`; }).join('')}</ol>`;
 }
 function threadCard(th) {
-  return `<a class="card story-card" href="#/forlop/${th.id}">
-    <div class="card-img">${img(th.img, '')}</div>
+  return `<a class="card story-card" href="#/${th.kind === 'tema' ? 'tema' : 'historier'}/${th.id}">
+    <div class="card-img">${img(th.img, '')}<span class="thread-line" aria-hidden="true"></span></div>
     <div class="card-body"><h3>${esc(th.title)}</h3><p>${esc(th.lead)}</p><p class="small">${t('nSteps', { n: th.steps.length })}</p></div></a>`;
+}
+function pStories() {
+  const stories = DATA.threads.filter(th => th.kind === 'forlop'), themes = DATA.threads.filter(th => th.kind === 'tema');
+  return `<div class="wrap">
+    <h1>${t('stories')}</h1><p class="lead narrowtext">${t('storiesLead')}</p>
+    <h2>${t('enterStory')}</h2><p class="blocklead">${t('enterStoryLead')}</p>
+    <div class="grid grid-3">${stories.map(threadCard).join('')}</div>
+    <h2>${t('themes')}</h2><p class="blocklead">${t('themesLead')}</p>
+    <div class="themes">${themes.map(themeChip).join('')}</div>
+    <h2>${t('allContent')}</h2><p class="blocklead">${t('allContentLead')}</p>
+    <div class="grid grid-4">${DATA.items.filter(i => i.id !== 'manifest').map(itemCard).join('')}</div>
+    <h2>${t('venues')}</h2>
+    <ul class="venues grid grid-3">${Object.keys(DATA.venues).map(k => { const n = DATA.program.filter(p => p.venue === k).length;
+      return `<li><h3>${esc(DATA.venues[k].n)}</h3><p>${esc(DATA.venues[k].d)}</p>${n ? `<p class="small">${t('nPosts', { n })}</p>` : ''}</li>`; }).join('')}</ul>
+  </div>`;
 }
 function pThread(r) {
   const th = byId(DATA.threads, r.b) || DATA.threads[0];
   const people = [...new Set(th.steps.map(s => (s.post && post(s.post).who) || (s.item && item(s.item).who)).filter(Boolean))];
   return `<article class="wrap narrow">
-    <p class="crumb"><a href="#/fra">${t('fromFestival')}</a></p>
-    <h1>${esc(th.title)}</h1><p class="lead">${esc(th.lead)}</p>
+    <p class="crumb"><a href="#/historier">${t('stories')}</a></p>
+    <p class="kicker">${th.kind === 'tema' ? t('theme') : t('story')}</p>
+    <h1>${esc(th.title)}</h1>
+    <figure class="work-img">${img(th.img, '')}</figure>
+    <p class="lead">${esc(th.lead)}</p>
     ${people.map(personBox).join('')}
     ${stepsList(th)}
   </article>`;
 }
-
-/* ---------- Fra festivalen: innhold som legges ut fortløpende ---------- */
 function itemCard(it) {
-  return `<a class="card item" href="#/fra/${it.id}">
+  return `<a class="card item" href="#/innhold/${it.id}">
     <div class="card-img">${img(it.img, '')}${it.type === 'video' || it.type === 'lyd' ? '<span class="play small-play" aria-hidden="true"></span>' : ''}</div>
     <div class="card-body"><p class="kicker">${L(DATA.itemTypes[it.type])}${it.mock ? ` <span class="tag tag-ex">${t('example')}</span>` : ''}</p><h3>${esc(it.title)}</h3><p class="small">${esc(itemBy(it))}, ${esc(it.date)}</p></div>
   </a>`;
-}
-function pFeed() {
-  const stories = DATA.threads.filter(th => th.kind === 'forlop'), coll = DATA.threads.filter(th => th.kind === 'samling');
-  return `<div class="wrap">
-    <h1>${t('fromFestival')}</h1><p class="lead">${t('fromLead')}</p>
-    <div class="grid grid-4">${DATA.items.map(itemCard).join('')}</div>
-    <h2>${t('stories')}</h2><p class="blocklead">${t('storiesLead')}</p>
-    <div class="grid grid-3">${stories.map(threadCard).join('')}</div>
-    <h2>${t('collections')}</h2>
-    <div class="grid grid-3">${coll.map(threadCard).join('')}</div>
-    <h2>${t('venues')}</h2>
-    <ul class="venues grid grid-3">${Object.keys(DATA.venues).map(k => { const n = DATA.program.filter(p => p.venue === k).length;
-      return `<li><h3>${esc(DATA.venues[k].n)}</h3><p>${esc(DATA.venues[k].d)}</p>${n ? `<p class="small">${n} programposter i 2026</p>` : ''}</li>`; }).join('')}</ul>
-  </div>`;
 }
 function pItem(r) {
   const w = item(r.b) || DATA.items[0];
   const media = w.type === 'video' || w.type === 'lyd'
     ? `<div class="player ${w.type}">${img(w.img, '')}<span class="play" aria-hidden="true"></span><p>${t('mockMedia')}</p></div>`
-    : w.gallery ? `<div class="gallery">${w.gallery.map(g => `<figure>${img(g, 'Bilde fra festivalen')}<figcaption>Foto: mangler</figcaption></figure>`).join('')}</div>`
+    : w.gallery ? `<div class="gallery">${w.gallery.map(g => `<figure>${img(g, '')}<figcaption>${t('photoMissing')}</figcaption></figure>`).join('')}</div>`
     : `<figure class="work-img">${img(w.img, '')}</figure>`;
   const ths = threadsFor(s => s.item === w.id);
   return `<article class="wrap narrow work-page">
-    <p class="crumb"><a href="#/fra">${t('fromFestival')}</a></p>
+    <p class="crumb"><a href="#/historier">${t('stories')}</a></p>
     <p class="kicker">${L(DATA.itemTypes[w.type])}${w.mock ? ` <span class="tag tag-ex">${t('example')}</span>` : ''}</p>
     <h1>${esc(w.title)}</h1>
     ${media}
-    ${w.body.map((p, i) => `<p class="${i === 0 ? 'lead' : ''}">${esc(facts(p))}</p>`).join('')}
+    ${w.body.map((p, i) => `<p class="${i === 0 ? 'lead' : ''}">${facts(p)}</p>`).join('')}
     ${w.who ? personBox(w.who) : ''}
     <dl class="meta">
       ${w.who ? '' : `<div><dt>${t('contributor')}</dt><dd>${esc(w.by)}</dd></div>`}
@@ -301,61 +413,121 @@ function pItem(r) {
   </article>`;
 }
 
+/* ---------- Blogg ---------- */
+function pBlog() {
+  const posts = DATA.posts.slice().sort((a, b) => b.date.localeCompare(a.date));
+  return `<div class="wrap"><h1>${t('blog')}</h1><p class="lead narrowtext">${t('blogLead')}</p><div class="grid grid-3">${posts.map(postCard).join('')}</div></div>`;
+}
+function pBlogPost(r) {
+  const p = byId(DATA.posts, r.b) || DATA.posts[0];
+  let embed = '';
+  if (p.embed && p.embed.thread) { const th = byId(DATA.threads, p.embed.thread); embed = `<section class="story embed"><p class="kicker">${th.kind === 'tema' ? t('theme') : t('story')}</p><h2>${esc(th.title)}</h2>${stepsList(th)}</section>`; }
+  if (p.embed && p.embed.item) embed = `<div class="embed-card">${itemCard(item(p.embed.item))}</div>`;
+  return `<article class="wrap narrow">
+    <p class="crumb"><a href="#/nytt">${t('blog')}</a></p>
+    <p class="kicker">${fmt(iso(p.date), { day: 'numeric', month: 'long', year: 'numeric' })} · ${esc(p.by)}</p>
+    <h1>${esc(p.title)}</h1><figure class="work-img">${img(p.img, '')}</figure>
+    <p class="lead">${facts(p.lead)}</p>${p.body.map(b => `<p>${facts(b)}</p>`).join('')}${embed}
+  </article>`;
+}
+
 /* ---------- Bidragsytere ---------- */
+function personCard(k) {
+  const p = DATA.people[k];
+  return `<a class="pcard" href="#/bidragsytere/${k}">${portrait(k)}<span class="pcard-body"><strong>${esc(p.n)}</strong><span>${L(cat(p.k))}</span></span></a>`;
+}
 function pPeople() {
-  return `<div class="wrap"><h1>${t('people')}</h1><ul class="people">${Object.keys(DATA.people).map(k => {
-    const p = DATA.people[k];
-    return `<li><a href="#/bidragsytere/${k}"><span class="dot" style="background:${cat(p.k).c}"></span><strong>${esc(p.n)}</strong><span>${L(cat(p.k))}</span></a></li>`; }).join('')}</ul></div>`;
+  return `<div class="wrap"><h1>${t('people')} ${E.year}</h1>${progTabs('bidragsytere')}<p class="lead narrowtext">${t('peopleLead')}</p>
+    <div class="pgrid">${Object.keys(DATA.people).map(personCard).join('')}</div></div>`;
 }
 function pPerson(r) {
   const k = DATA.people[r.b] ? r.b : Object.keys(DATA.people)[0], p = DATA.people[k];
   const posts = DATA.program.filter(x => x.who === k), made = DATA.items.filter(i => i.who === k);
   const ths = threadsFor(s => (s.post && post(s.post).who === k) || (s.item && item(s.item).who === k));
   return `<article class="wrap narrow"><p class="crumb"><a href="#/bidragsytere">${t('people')}</a></p>
-    <p class="kicker"><span class="dot" style="background:${cat(p.k).c}"></span>${L(cat(p.k))}</p>
-    <h1>${esc(p.n)}</h1><p class="lead">${esc(p.b)}</p>
+    <div class="phead">${portrait(k, 'lg')}<div><p class="kicker"><span class="dot" style="background:${cat(p.k).c}"></span>${L(cat(p.k))}</p><h1>${esc(p.n)}</h1><p class="lead">${esc(p.b)}</p></div></div>
+    <p class="small">${t('photoComingLong')}</p>
+    ${p.long ? `<p>${esc(p.long)}</p>` : ''}
+    ${p.links && p.links.length ? `<p class="links">${p.links.map(l => `<a class="chiplink" href="#/bidragsytere/${k}">${esc(l)}</a>`).join('')}</p>` : ''}
     ${posts.length ? `<h2>${t('inProgram')}</h2><ul class="plist">${posts.map(x => progItem(x, { prefix: fmt(dayDate(x.day), { weekday: 'long' }) })).join('')}</ul>` : ''}
-    ${made.length ? `<h2>${t('fromFestival')}</h2><div class="grid grid-2">${made.map(itemCard).join('')}</div>` : ''}
+    ${made.length ? `<h2>${t('madeHere')}</h2><div class="grid grid-2">${made.map(itemCard).join('')}</div>` : ''}
     ${ths.map(th => `<section class="story"><h2>${t('wholeStory')}</h2><p>${esc(th.lead)}</p>${stepsList(th)}</section>`).join('')}
   </article>`;
 }
 
 /* ---------- Håndboka ---------- */
-function groupLink(k, base) {
+const GROUP_ICON = {
+  styret: 'M4 20h16M6 20V10M10 20V10M14 20V10M18 20V10M3 10l9-6 9 6z', koord: 'M12 3a9 9 0 100 18 9 9 0 000-18zm0 4v5l3 2',
+  program: 'M9 18V5l11-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zm11-2a3 3 0 11-6 0 3 3 0 016 0z', marked: 'M3 11l15-6v14L3 13zM7 12v6h3',
+  logistikk: 'M3 15h18M5 15l2-6h10l2 6M7 19a2 2 0 100-4 2 2 0 000 4zm10 0a2 2 0 100-4 2 2 0 000 4zM2 21h20', vertskap: 'M4 21V9l8-6 8 6v12M10 21v-6h4v6',
+  kjokken: 'M6 3v8a2 2 0 004 0V3M8 11v10M16 3c-2 2-2 6 0 8v10', praktisk: 'M14 6l4-3 3 3-3 4M14 6L4 16l4 4 10-10M14 6l4 4',
+  miljo: 'M12 21c-5-3-8-7-8-11a8 8 0 0116 0c0 4-3 8-8 11zM12 21V9', barn: 'M12 7a3 3 0 100-6 3 3 0 000 6zM6 21l2-9h8l2 9M4 12l4-2M20 12l-4-2',
+  media: 'M4 5h16v11H8l-4 4zM8 9h8M8 12h5'
+};
+const groupIcon = (g, size) => `<span class="gicon" style="--g:${DATA.groups[g].c}"><svg viewBox="0 0 24 24" width="${size || 22}" height="${size || 22}" aria-hidden="true"><path d="${GROUP_ICON[g] || GROUP_ICON.koord}"/></svg></span>`;
+function groupLink(k) {
   const g = DATA.groups[k];
-  return `<li><a href="${base}${k}"><span class="swatch" style="background:${g.c}"></span><span><strong>${esc(g.n)}</strong><span>${esc(g.d)}</span></span></a></li>`;
+  return `<li><a href="#/handbok/gruppe/${k}">${groupIcon(k)}<span><strong>${esc(g.n)}</strong><span>${esc(g.d)}</span></span></a></li>`;
+}
+function rhythmList() {
+  return `<ul class="rhythm">
+    <li><strong>${facts('{movement}')}</strong>${t('rMove')}</li><li><strong>${facts('{breakfast}')}</strong>${t('rBreakfast')}</li>
+    <li><strong>12:30</strong>${t('rGroups')}</li><li><strong>${facts('{kidsMeal}')}</strong>${t('rKids')}</li>
+    <li><strong>${facts('{dinner}')}</strong>${t('rDinner')} (${t('friSat')} ${facts('{dinnerWeekend}')})</li></ul>`;
 }
 function pHandbook() {
-  return `<div class="wrap narrow">
-    <h1>${t('handbook')}</h1>
-    <p class="lead">Hvordan Karlsøyfestivalen organiseres, og hvordan du kan bli med. Håndboka er arbeidsverktøyet vårt og oppdateres fortløpende.</p>
-    <p class="note">${t('factsNote')}</p>
-    <h2>${t('dayRhythm')}</h2>
-    <ul class="rhythm">
-      <li><strong>${E.movement}</strong>Felles bevegelse</li>
-      <li><strong>${E.breakfast}</strong>Frokost og morgenmøte</li>
-      <li><strong>12:30</strong>Gruppemøter</li>
-      <li><strong>${E.kidsMeal}</strong>Måltid for barn og ungdom</li>
-      <li><strong>${E.dinner}</strong>Fellesmiddag (fredag og lørdag ${E.dinnerWeekend})</li>
-    </ul>
-    <h2>${t('principles')}</h2>
-    <ol class="principles">${DATA.principles.map(p => `<li><strong>${esc(p[0])}</strong><p>${esc(p[1])}</p></li>`).join('')}</ol>
-    <h2>${t('festGroups')}</h2><ul class="grouplist">${DATA.festivalGroups.map(k => groupLink(k, '#/handbok/')).join('')}</ul>
-    <h2>${t('prepGroups')}</h2><ul class="grouplist">${DATA.prepGroups.map(k => groupLink(k, '#/handbok/')).join('')}</ul>
-    <h2>${t('organs')}</h2><ul class="grouplist">${['styret', 'koord'].map(k => groupLink(k, '#/handbok/')).join('')}</ul>
-  </div>`;
+  return `<div class="hb-hero"><div class="wrap">
+      <p class="kicker">${t('handbook')} · ${t('version')} 10 (${t('draft')})</p>
+      <h1>${t('hbTitle')}</h1><p class="lead narrowtext">${t('hbLead')}</p>
+      <p class="actions"><button class="btn btn-dark" data-act="print">${t('printShort')}</button><a class="btn" href="#/handbok/delta">${t('howJoin')}</a></p>
+    </div></div>
+    <div class="wrap">
+      <p class="note">${t('factsNote')}</p>
+      <div class="chapters">${DATA.chapters.map(ch => `<a class="chapter" href="#/handbok/${ch.id}"><span class="ch-img">${img(ch.img, '')}</span><span class="ch-body"><strong>${esc(L(ch.title))}</strong><span>${facts(L(ch.core))}</span></span></a>`).join('')}</div>
+      <h2>${t('festGroups')} ${E.next.from.slice(0, 4)}</h2><ul class="grouplist">${DATA.festivalGroups.map(groupLink).join('')}</ul>
+      <h2>${t('prepGroups')}</h2><ul class="grouplist">${DATA.prepGroups.map(groupLink).join('')}</ul>
+      <h2>${t('organs')}</h2><ul class="grouplist">${['styret', 'koord'].map(groupLink).join('')}</ul>
+      <p class="small">${t('hbPhotos')}</p>
+    </div>
+    <div class="print-only">${printShort()}</div>`;
 }
-function groupBody(k) {
+function printShort() {
+  return `<h1>Karlsøyfestivalen ${E.next.from.slice(0, 4)} – ${t('shortVersion')}</h1>${DATA.chapters.map(ch => `<h2>${esc(L(ch.title))}</h2><p>${factsPlain(L(ch.core))}</p>`).join('')}
+    <h2>${t('festGroups')}</h2><ul>${DATA.festivalGroups.map(g => `<li><strong>${esc(groupName(g))}</strong>: ${esc(DATA.groups[g].d)}</li>`).join('')}</ul>`;
+}
+function pChapter(r) {
+  const ch = byId(DATA.chapters, r.b) || DATA.chapters[0], i = DATA.chapters.indexOf(ch), nx = DATA.chapters[i + 1];
+  return `<article class="wrap narrow chapter-page">
+    <p class="crumb"><a href="#/handbok">${t('handbook')}</a></p>
+    <h1>${esc(L(ch.title))}</h1>
+    <figure class="work-img">${img(ch.img, '')}<figcaption>${t('photoBy')} Håndboka v9.1</figcaption></figure>
+    <div class="core"><p class="core-label">${t('coreLabel')}</p><p>${facts(L(ch.core))}</p></div>
+    ${ch.rhythm ? rhythmList() : ''}
+    ${ch.more.map(p => `<p>${facts(p)}</p>`).join('')}
+    ${ch.quote ? `<blockquote><p>${esc(ch.quote.nb)}</p><cite>${esc(ch.quote.src)}</cite></blockquote>` : ''}
+    ${ch.principles ? `<h2>${t('principles')}</h2><ol class="principles">${DATA.principles.map(p => `<li><strong>${esc(p[0])}</strong><p>${esc(p[1])}</p></li>`).join('')}</ol>` : ''}
+    ${ch.wheelImg ? `<h2>${t('yearWheel')}</h2><figure class="work-img">${img('hb-arshjul-gammelt', t('oldWheel'))}<figcaption>${t('oldWheel')}</figcaption></figure>` : ''}
+    ${ch.id === 'delta' ? `<h2>${t('boardExample')}</h2><ul class="tlist">${DATA.tavla.slice(0, 2).map(c => boardCard(c, true)).join('')}</ul>` : ''}
+    <p class="edit-note">${t('editNote')}</p>
+    ${nx ? `<a class="nextch" href="#/handbok/${nx.id}"><span>${t('next')}</span><strong>${esc(L(nx.title))}</strong></a>` : ''}
+  </article>`;
+}
+function groupBody(k, inside) {
   const g = DATA.groups[k];
   const dl = DATA.deadlines.filter(d => d.g === k).sort((a, b) => a.m - b.m || a.d - b.d);
+  const year = E.next.from.slice(0, 4), key = k + year, done = STATE.checks[key] || [];
+  const list = inside
+    ? `<ul class="todo">${g.tasks.map((x, i) => `<li><label><input type="checkbox" data-act="check" data-v="${k}|${i}"${done.includes(i) ? ' checked' : ''}><span>${esc(x)}</span></label></li>`).join('')}</ul><p class="small">${t('todoNote', { n: done.length, m: g.tasks.length, y: year })}</p>`
+    : `<ul class="ticks">${g.tasks.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
   return `<p class="lead">${esc(g.d)}</p>
-    <h2>${t('tasks')}</h2><ul class="ticks">${g.tasks.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
-    ${dl.length ? `<h2>${t('dates')}</h2><ul class="dl">${dl.map(d => `<li><time>${d.d}. ${monthName(d.m)}</time>${esc(d.t)}</li>`).join('')}</ul>` : ''}`;
+    <h2>${t('tasks')}</h2>${list}
+    ${dl.length ? `<h2>${t('dates')}</h2><ul class="dl">${dl.map(d => `<li><time>${d.d}. ${monthName(d.m)}</time>${esc(d.t)}</li>`).join('')}</ul>` : ''}
+    <div class="gives"><h2>${t('groupGives')}</h2><ul class="givelist"><li>${t('gFiles')}</li><li>${t('gCal')}</li><li>${t('gList')}</li><li>${t('gColor')}</li><li>${t('gDiscord')}</li></ul></div>`;
 }
 function pGroup(r) {
-  const k = DATA.groups[r.b] ? r.b : 'kjokken', g = DATA.groups[k];
+  const k = DATA.groups[r.c] ? r.c : 'kjokken', g = DATA.groups[k];
   return `<article class="wrap narrow"><p class="crumb"><a href="#/handbok">${t('handbook')}</a></p>
-    <h1><span class="swatch big" style="background:${g.c}"></span>${esc(g.n)}</h1>${groupBody(k)}</article>`;
+    <h1 class="gtitle">${groupIcon(k, 30)}${esc(g.n)}</h1>${groupBody(k, false)}</article>`;
 }
 
 /* ---------- Praktisk ---------- */
@@ -363,26 +535,29 @@ function pPractical() {
   return `<div class="wrap narrow">
     <h1>${t('practical')}</h1>
     <ul class="factgrid">
-      <li><strong>${E.price} kr</strong>Deltakerpass for voksne</li>
-      <li><strong>0 kr</strong>Under ${E.freeUnder} år</li>
-      <li><strong>${E.breakfast} og ${E.dinner}</strong>Felles frokost og middag</li>
-      <li><strong>${fmt(iso(E.next.from), { day: 'numeric', month: 'short' })} – ${fmt(iso(E.next.to), { day: 'numeric', month: 'short', year: 'numeric' })}</strong>Neste festival</li>
+      <li><strong>${facts('{price}')} kr</strong>${t('passAdult')}</li>
+      <li><strong>0 kr</strong>${t('under')} ${facts('{freeUnder}')} ${t('years')}</li>
+      <li><strong>${facts('{breakfast}')} · ${facts('{dinner}')}</strong>${t('meals')}</li>
+      <li><strong>${fmt(iso(E.next.from), { day: 'numeric', month: 'short' })} – ${fmt(iso(E.next.to), { day: 'numeric', month: 'short' })}</strong>${t('nextFestival')}</li>
     </ul>
+    <section class="checkin"><h2>${t('buyPass')}</h2><div class="iframe-ph"><strong>Checkin</strong><span>${t('checkinNote')}</span></div></section>
     <p class="note">${t('factsNote')}</p>
     <h2>${t('faq')}</h2>
-    <div class="faq">${DATA.faq.map(f => `<details><summary>${esc(f[0])}</summary><p>${esc(facts(f[1]))}</p></details>`).join('')}</div>
+    <div class="faq">${DATA.faq.map(f => `<details><summary>${esc(f[0])}</summary><p>${facts(f[1])}</p></details>`).join('')}</div>
+    <figure class="work-img">${img('hb-ferga', '')}<figcaption>${t('ferryCap')}</figcaption></figure>
   </div>`;
 }
 
 /* ---------- Live ---------- */
 function pLive() {
   const nn = nowNext(), n = nn.now[0];
+  if (!liveNow()) return `<div class="wrap narrow"><h1>${t('live')}</h1><p class="empty">${t('noLive')}</p><a class="btn" href="#/program">${t('thisHappens')}</a></div>`;
   return `<div class="wrap narrow">
     <h1>${t('live')}</h1>
     <div class="player video">${img('storscenen', '')}<span class="play" aria-hidden="true"></span><p>${t('mockMedia')}</p></div>
+    <p class="small">${t('audioOnly')}</p>
     ${n ? `<h2>${t('liveNow')}</h2><ul class="plist">${progItem(n)}</ul>` : ''}
-    <h2>${t('nowNext')}</h2><ul class="plist">${nn.next.map(p => progItem(p)).join('')}</ul>
-    <p class="note">Live vises i menyen bare når en sending pågår eller er nær. Sendingen opprettes fra programposten, og opptaket legges etterpå inn i samme forløp.</p>
+    <h2>${t('laterToday')}</h2><ul class="plist">${nn.next.map(p => progItem(p)).join('')}</ul>
   </div>`;
 }
 
@@ -390,45 +565,37 @@ function pLive() {
 function pAbout() {
   return `<div class="wrap narrow about">
     <h1>${t('about')}</h1>
-    <p class="lead">Dette er en statisk skisse av brukeropplevelsen i Karlsøy 2.0. Den viser hvordan utsiden og innsiden kan henge sammen, ikke hvordan det skal se ut til slutt.</p>
-    <h2>Hva du kan prøve</h2>
+    <p class="lead">Dette er en klikkbar skisse av nettsiden og innsiden til Karlsøyfestivalen, laget til kravspesifikasjonen for det digitale løftet (utkast 2). Den finnes i to utgaver: <a href="index.html">fase 1</a>, med det som skal virke til festivalen 2027, og <a href="fase2.html">fase 2</a>, med de valgfrie tilleggene merket «${t('phase2')}».</p>
+    <h2>Prøv dette</h2>
     <ul class="ticks">
-      <li>Åpne en programpost, for eksempel <a href="#/forlop/urfolk">samtalen om urfolks rettigheter</a>, og følg hele forløpet: kunngjøring, konsert, samtale, opptak og avisoppslag.</li>
-      <li>Bla i programmet for 2026, filtrer på kategori og lagre poster med stjerna.</li>
-      <li>Trykk «${t('login')}» og bytt mellom fire eksempelbrukere. Hver ser bare det den trenger.</li>
-      <li>Åpne «${t('messages')}» nederst til høyre på innsiden og send en melding.</li>
-      <li>Bytt mellom «${t('festivalWeek')}» og «${t('restOfYear')}» på forsiden innenfor.</li>
-      <li>Åpne årshjulet, trykk på en måned og velg en gruppe.</li>
-      <li>Bytt språk. Grensesnittet finnes på norsk, engelsk, fransk og nederlandsk.</li>
+      <li>Bytt mellom <strong>${t('whenBefore')}</strong>, <strong>${t('whenDuring')}</strong> og <strong>${t('whenAfter')}</strong> i stripa øverst. Program-siden, forsiden og Live endrer seg.</li>
+      <li>Åpne Program i menyen: Dette skjer, Dag for dag, Alle programposter og Bidragsytere.</li>
+      <li>Gå inn i <a href="#/historier/urfolk">historien om urfolks rettigheter</a>, fra kunngjøring til avisoppslag.</li>
+      <li>Les <a href="#/handbok">håndboka</a> og skriv ut den korte utgaven. Tall med prikket strek er faste fakta som settes ett sted.</li>
+      <li>Logg inn og bytt mellom fire eksempelbrukere. Se Tavla, Folk, kunngjøringer og gruppas huskeliste.</li>
+      <li>Som Sindre i driftsgruppa: se driftsmeldingene og prøv reparer-kommandoen.</li>
+      ${F2 ? '<li>Fase 2: Discord-kanaler i et vindu, møterom, oppgaver med roller, kvitteringer, medlemskap, husutleie, arkiv og verktøykasse.</li>' : ''}
     </ul>
-    <h2>Slik henger innholdet sammen</h2>
-    <p>En bidragsyter har programposter. Rundt en programpost lages det innhold: strøm, opptak, bilder, tekst og avisoppslag. Det som hører sammen, kobles i et forløp og vises i rekkefølge. En samling er det samme grepet brukt på ting som ikke er ett arrangement, for eksempel historien til øya.</p>
-    <table>
-      <tr><th>I menyen og på sidene</th><th>I Hypa Poiesis</th></tr>
-      <tr><td>Innhold fra festivalen: artikkel, bilder, video, lyd, avisoppslag</td><td>Verk</td></tr>
-      <tr><td>Forløp og samlinger</td><td>Dialoger (prosess, tidslinje, katalog)</td></tr>
-      <tr><td>Programpost, sted, kategori</td><td>Program</td></tr>
-      <tr><td>Bidragsyter</td><td>Bidragsyter</td></tr>
-    </table>
-    <p>Ordene «verk» og «dialog» brukes ikke i grensesnittet. De er prinsipper for hvordan innhold organiseres og oppleves.</p>
+    <h2>Navn som kan diskuteres</h2>
+    <table><tr><th>I prototypen</th><th>Andre forslag</th><th>I Hypa Poiesis</th></tr>
+      <tr><td>Historier</td><td>Opplev festivalen, Dykk ned i festivalen, Historier fra festivalen</td><td>Dialoger</td></tr>
+      <tr><td>Temaer</td><td>I fokus, Tråder</td><td>Dialoger (katalog)</td></tr>
+      <tr><td>Innhold (video, bilder, tekst)</td><td></td><td>Verk</td></tr>
+      <tr><td>Nytt (blogg)</td><td>Siste fra festivalen</td><td></td></tr></table>
     <h2>Hva som er ekte, og hva som er eksempler</h2>
     <table>
-      <tr><th>Ekte, fra kildene</th><td>Program 2026, steder, kategorier, bidragsytere, manifest, grupper, huskelister, frister, prinsipper, FAQ, bilder fra dagens nettside.</td></tr>
-      <tr><th>Eksempler</th><td>Opptak, avisoppslag og paneldebatt (merket «${t('example')}»), brukerne Mari, Jonas, Aila og Sindre, meldinger, Tavla-kort, samreise, statuser på bidrag og driftsstatus.</td></tr>
-      <tr><th>Mangler</th><td>Fotograf og lisens på bildene, beskrivelse av gruppa Mobilisering og media, innhold på andre språk enn norsk.</td></tr>
+      <tr><th>Ekte, fra kildene</th><td>Program 2026, steder, kategorier, bidragsytere og omtaler, manifest, grupper, huskelister, frister, prinsipper, FAQ, tekst fra håndboka og bookleten, bilder fra håndboka og nettsiden.</td></tr>
+      <tr><th>Eksempler</th><td>Opptak, avisoppslag, blogginnlegg, brukerne Mari, Jonas, Aila og Sindre, deltakerlista, kunngjøringer, Tavla-kort, samreise, statuser, driftsmeldinger${F2 ? ', oppgaver, kvitteringer, husbookinger og arkiv' : ''}.</td></tr>
+      <tr><th>Mangler</th><td>Portretter av bidragsytere (plassholdere med initialer), fotograf og lisens på flere bilder, innhold på engelsk.</td></tr>
     </table>
-    <h2>Data ett sted</h2>
-    <p>All data ligger i fila <code>js/data.js</code>. Pris, datoer og klokkeslett står én gang øverst i fila og settes inn i FAQ, håndbok og praktisk info. Årshjulet og fristene på forsiden innenfor tegnes fra samme liste.</p>
-    <p>Der kildene var uenige, bruker prototypen programheftet for 2026: bevegelse kl. ${E.movement} og fellesmiddag kl. ${E.dinner}.</p>
-    <h2>Meldinger</h2>
-    <p>Meldinger er asynkrone: du skriver når det passer, og får varsel på e-post om noe står ulest. Samtalene følger gruppene, bidragene og enkeltpersoner. I prototypen lagres det du skriver bare i din egen nettleser.</p>
     <h2>Teknisk</h2>
-    <p>Ren HTML, CSS og JavaScript uten byggesteg, rammeverk eller eksterne kall. Fargene følger designet for Hypa Poiesis. Siden ber utvidelsen Dark Reader om å la fargene være.</p>
+    <p>Ren HTML, CSS og JavaScript uten byggesteg, slik at den kan ligge på Codeberg Pages. Den ferdige løsningen skal bygges med React og Next.js. All data ligger i <code>js/data.js</code> og <code>js/data-extra.js</code>. Det du gjør lagres bare i din egen nettleser.</p>
+    <p>Fargene bygger på hovedpaletten (rød, hvit, grå, gråbrun og mørk gråbrun) og regnbuefargene fra logoen.</p>
   </div>`;
 }
 
 /* ====================================================================
-   INNSIDEN – dashbord etter innlogging
+   INNSIDEN – etter innlogging
    ==================================================================== */
 function nowNext() {
   const today = DATA.program.filter(p => p.day === DEMO.day && p.start).sort((a, b) => sortKey(a.start) - sortKey(b.start));
@@ -436,121 +603,108 @@ function nowNext() {
   const next = today.filter(p => sortKey(p.start) > DEMO.min).slice(0, 4);
   return { now, next };
 }
+const ICON = {
+  home: 'M4 11l8-7 8 7v9h-5v-6H9v6H4z', star: 'M12 3.2l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17.1 6.6 20l1.1-6.1-4.5-4.3 6.1-.8z',
+  board: 'M4 4h7v9H4zM13 4h7v5h-7zM13 11h7v9h-7zM4 15h7v5H4z', folk: 'M8 11a3 3 0 100-6 3 3 0 000 6zm8 0a3 3 0 100-6 3 3 0 000 6zM2 20c0-3.3 2.7-6 6-6s6 2.7 6 6zm12.5 0c0-2-.7-3.8-1.9-5.2.9-.5 2-.8 3.4-.8 3.3 0 6 2.7 6 6z',
+  more: 'M4 6h16M4 12h16M4 18h16'
+};
 function insideTabs(r) {
-  const deltaker = !levelAtLeast('medlem');
-  const tabs = [['', 'dash', 'M4 11l8-7 8 7v9h-5v-6H9v6H4z'], ['program', 'myProgram', 'M12 3.2l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17.1 6.6 20l1.1-6.1-4.5-4.3 6.1-.8z'],
-    ['tavla', 'board', 'M4 4h7v9H4zM13 4h7v5h-7zM13 11h7v9h-7zM4 15h7v5H4z'],
-    deltaker ? ['gruppe', 'yourGroup', 'M8 11a3 3 0 100-6 3 3 0 000 6zm8 0a3 3 0 100-6 3 3 0 000 6zM2 20c0-3.3 2.7-6 6-6s6 2.7 6 6zm12.5 0c0-2-.7-3.8-1.9-5.2.9-.5 2-.8 3.4-.8 3.3 0 6 2.7 6 6z']
-             : ['arshjul', 'yearWheel', 'M12 2a10 10 0 100 20 10 10 0 000-20zm0 3v7l5 3'],
-    ['mer', 'more', 'M4 6h16M4 12h16M4 18h16']];
-  return `<nav class="tabs" aria-label="${t('menu')}">${tabs.map(([h, k, d]) =>
-    `<a href="#/inn${h ? '/' + h : ''}"${r.b === h ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="${d}"/></svg><span>${t(k)}</span></a>`).join('')}</nav>`;
+  const tabs = [['', 'dash', 'home'], ['program', 'myProgram', 'star'], ['tavla', 'board', 'board'], ['folk', 'folk', 'folk'], ['mer', 'more', 'more']];
+  return `<nav class="tabs" aria-label="${t('menu')}">${tabs.map(([h, k, ic]) =>
+    `<a href="#/inn${h ? '/' + h : ''}"${r.b === h ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="${ICON[ic]}"/></svg><span>${t(k)}</span></a>`).join('')}</nav>`;
 }
 function insideShell(r) {
-  const pages = { '': iDash, program: iMyProgram, tavla: iBoard, arshjul: iWheel, gruppe: iGroup, koordinering: iCoord, samreise: iRides, mer: iMore, verktoy: iTool, drift: iOps };
+  const pages = { '': iDash, program: iMyProgram, tavla: iBoard, folk: iFolk, kunngjoringer: iAnnounce, arshjul: iWheel, gruppe: iGroup,
+    koordinering: iCoord, samreise: iRides, mer: iMore, verktoy: iTool, drift: iOps,
+    oppgaver: F2 ? iTasks : iDash, utlegg: F2 ? iReceipts : iDash, medlemskap: F2 ? iMember : iDash, moterom: F2 ? iVoice : iDash, husutleie: F2 ? iHouseAdmin : iDash };
   const p = persona();
-  return `${ribbon()}
+  return `
   <header class="itop">
-    <a class="brand" href="#/inn"><img src="assets/logo.png" alt="" width="40" height="28"><span>Karlsøy 2.0</span></a>
+    <a class="brand" href="#/inn"><img src="assets/logo.png" alt="" width="44" height="31"><span>Karlsøyfestivalen</span></a>
     <button class="who" data-act="sheet" aria-expanded="${STATE.sheet}"><span class="avatar">${p.name[0]}</span><span><strong>${p.name}</strong><span>${L(p.role)}</span></span></button>
   </header>
   ${STATE.sheet ? `<div class="sheet" role="dialog" aria-label="${t('viewAs')}">
       <h2>${t('viewAs')}</h2>
       <div class="rolelist">${Object.keys(DATA.personas).map(k => `<button data-act="persona" data-v="${k}" aria-pressed="${STATE.persona === k}"><span class="avatar">${DATA.personas[k].name[0]}</span><span><strong>${DATA.personas[k].name}</strong><span>${L(DATA.personas[k].role)}</span></span></button>`).join('')}</div>
-      <p class="small">Eksempelbrukere. I den ferdige løsningen er dette din egen konto.</p>
+      <p class="small">${t('sampleUsers')}</p>
       <div class="sheet-foot">${langSelect()}<a class="btn" href="#/" data-act="logout">${t('logout')}</a><button class="btn btn-dark" data-act="sheet">${t('close')}</button></div>
     </div>` : ''}
   <div class="ishell">${insideTabs(r)}<main id="main" class="imain">${(pages[r.b] || iDash)(r)}</main></div>
-  ${STATE.chat ? chatPop() : chatFab()}`;
+  ${F2 ? (STATE.chat ? chatPop() : chatFab()) : ''}`;
 }
 
-/* ---------- Meldinger: asynkron chat i et vindu over grensesnittet ---------- */
-function chatsFor() {
-  return DATA.chats.filter(c => c.kind === 'gruppe' ? myGroups().includes(c.g) : c.kind === 'bidrag' ? levelAtLeast('verv') : true);
+/* ---------- Kunngjøringer fra Discord ---------- */
+function announceFor(groups) { return DATA.announce.filter(a => a.ch === 'alle' || groups.includes(a.ch)); }
+function announceList(list) {
+  return `<ul class="alist">${list.map(a => `<li${a.ch !== 'alle' ? ` style="--g:${DATA.groups[a.ch].c}"` : ''}><p class="a-meta"><strong>${a.ch === 'alle' ? t('toAll') : esc(groupName(a.ch))}</strong> · ${esc(a.from)}, ${esc(a.when)}</p><p>${facts(a.t)}</p></li>`).join('')}</ul>`;
 }
-const chatName = c => (c.kind === 'gruppe' ? DATA.groups[c.g].n : c.name);
-const chatMsgs = c => c.msgs.concat(STATE.sent[c.id] || []);
-const isMe = m => m.from === persona().name;
-const unreadOf = c => Math.max(0, c.msgs.filter(m => !isMe(m)).length - (STATE.read[c.id] || 0));
-function chatFab() {
-  const n = chatsFor().reduce((a, c) => a + unreadOf(c), 0);
-  return `<button class="chatfab" data-act="chat" aria-label="${t('messages')}${n ? ', ' + n + ' ' + t('unread') : ''}">
-    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>${n ? `<span class="badge">${n}</span>` : ''}</button>`;
-}
-function chatPop() {
-  const list = chatsFor(), c = byId(list, STATE.chatId);
-  if (c) {
-    const canWrite = c.kind !== 'beskjed' || levelAtLeast('medlem');
-    return `<section class="chatpop" role="dialog" aria-label="${esc(chatName(c))}">
-      <header><button class="iconbtn" data-act="chatback" aria-label="${t('back')}">‹</button><h2>${esc(chatName(c))}</h2><button class="iconbtn" data-act="chat" aria-label="${t('close')}">×</button></header>
-      <ol class="chat-msgs">${chatMsgs(c).map(m => `<li class="${isMe(m) ? 'me' : ''}"><p class="who-when">${isMe(m) ? t('you') : esc(m.from)}, ${esc(m.when || t('justNow'))}</p><p class="bubble">${esc(m.t)}</p></li>`).join('')}</ol>
-      ${canWrite ? `<form class="chat-form" data-act="chatsend"><label class="sr" for="chat-in">${t('writeMsg')}</label><textarea id="chat-in" rows="1" placeholder="${t('writeMsg')}" required></textarea><button class="btn btn-dark">${t('send')}</button></form>`
-        : `<p class="chat-ro">${t('chatReadOnly')}</p>`}
-    </section>`;
-  }
-  const group = (label, kind) => { const l = list.filter(x => x.kind === kind); return l.length ? `<h3>${label}</h3><ul>${l.map(x => { const m = chatMsgs(x).slice(-1)[0], n = unreadOf(x);
-    return `<li><button data-act="chatopen" data-v="${x.id}">${x.kind === 'gruppe' ? `<span class="swatch" style="background:${DATA.groups[x.g].c}"></span>` : `<span class="avatar sm">${esc(chatName(x)[0])}</span>`}<span><strong>${esc(chatName(x))}</strong><span>${esc(m.t)}</span></span>${n ? `<span class="badge">${n}</span>` : `<span class="when">${esc(m.when || t('justNow'))}</span>`}</button></li>`; }).join('')}</ul>` : ''; };
-  return `<section class="chatpop" role="dialog" aria-label="${t('messages')}">
-    <header><h2>${t('messages')}</h2><button class="iconbtn" data-act="chat" aria-label="${t('close')}">×</button></header>
-    <div class="chat-list">
-      ${group(t('chatGroups'), 'gruppe')}${group(t('chatContrib'), 'bidrag')}${group(t('chatDirect'), 'direkte')}${group(t('chatAnnounce'), 'beskjed')}
-      <p class="small">${t('chatAsync')}</p>
-    </div>
-  </section>`;
+function iAnnounce() {
+  const g = myGroups();
+  return `<h1>${t('announcements')}</h1><p class="lead">${t('announceLead')}</p>
+    <h2>${t('toAll')}</h2>${announceList(DATA.announce.filter(a => a.ch === 'alle'))}
+    ${g.map(x => { const l = DATA.announce.filter(a => a.ch === x); return l.length ? `<h2 class="gtitle">${groupIcon(x)}${esc(groupName(x))}</h2>${announceList(l)}` : ''; }).join('')}
+    <p><a class="btn" href="#/inn/kunngjoringer">${t('openDiscord')}</a></p>`;
 }
 
 /* ---------- Dashbord ---------- */
-function modeSwitch() {
-  return `<div class="seg" role="group"><button data-act="fest" data-v="1" aria-pressed="${STATE.fest}">${t('festivalWeek')}</button><button data-act="fest" data-v="0" aria-pressed="${!STATE.fest}">${t('restOfYear')}</button></div>`;
-}
 function deadlineRows(groups, n) {
   const rows = DATA.deadlines.filter(d => groups.includes(d.g)).map(d => Object.assign({ nx: nextDate(d) }, d)).sort((a, b) => a.nx.days - b.nx.days).slice(0, n);
   return rows.length ? `<ul class="dlist">${rows.map(d => `<li><span class="swatch" style="background:${DATA.groups[d.g].c}"></span><div><strong>${esc(d.t)}</strong><span>${esc(DATA.groups[d.g].n)}</span></div><time>${fmt(d.nx.date, { day: 'numeric', month: 'short' })}<span>${inDays(d.nx.days)}</span></time></li>`).join('')}</ul>`
     : `<p class="empty">${t('noDeadlines')}</p>`;
 }
+function energyDots(n) { return `<span class="energy e${n}" title="${esc(L(DATA.energy[n]))}">${[1, 2, 3].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}<span>${L(DATA.energy[n])}</span></span>`; }
 function boardCard(c, compact) {
-  const mine = STATE.taken.includes(c.id);
-  return `<li class="tcard p-${c.p}${mine ? ' mine' : ''}">
-    <div><span class="tag p">${t(c.p)}</span><h3>${esc(c.t)}</h3><p>${esc(venue(c.where))}, ${c.min} ${t('minutes')}. ${esc(DATA.groups[c.g].n)}</p></div>
-    ${compact && mine ? '' : `<button class="btn ${mine ? '' : 'btn-dark'}" data-act="take" data-v="${c.id}">${mine ? t('release') : t('take')}</button>`}
+  const mine = STATE.taken.includes(c.id), g = DATA.groups[c.g];
+  return `<li class="tcard p-${c.p}${mine ? ' mine' : ''}" style="--g:${g.c}">
+    <div class="tc-top"><span class="tag p">${t(c.p)}</span><span class="tc-kind">${t(c.kind === 'rolle' ? 'role' : 'task')}</span></div>
+    <h3>${esc(c.t)}</h3><p class="tc-d">${esc(c.d)}</p>
+    <dl class="tc-meta"><div><dt>${t('group')}</dt><dd>${groupIcon(c.g, 16)}${esc(g.n)}</dd></div><div><dt>${t('guide')}</dt><dd>${esc(c.los)}</dd></div>
+      <div><dt>${t('when')}</dt><dd>${esc(c.time)}</dd></div><div><dt>${t('where')}</dt><dd>${esc(venue(c.where))}</dd></div></dl>
+    ${energyDots(c.energy)}
+    ${compact ? '' : `<button class="btn ${mine ? '' : 'btn-dark'}" data-act="take" data-v="${c.id}">${mine ? t('release') : t('take')}</button>`}
   </li>`;
 }
 function shortcuts() {
-  const all = [['files', 'medlem', 'M4 5h6l2 2h8v12H4z'], ['calendar', 'medlem', 'M5 5h14v15H5zM5 9h14M9 3v4M15 3v4'], ['mail', 'verv', 'M3 6h18v12H3zM3 7l9 6 9-6'],
-    ['streaming', 'verv', 'M4 6h12v12H4zM16 10l5-3v10l-5-3'], ['editHandbook', 'medlem', 'M5 4h11l3 3v13H5zM8 9h8M8 13h8M8 17h5']];
+  const all = [['files', 'medlem', 'M4 5h6l2 2h8v12H4z'], ['calendar', 'medlem', 'M5 5h14v15H5zM5 9h14M9 3v4M15 3v4'], ['vault', 'medlem', 'M6 10V8a6 6 0 0112 0v2M5 10h14v11H5zM12 14v3'],
+    ['mail', 'verv', 'M3 6h18v12H3zM3 7l9 6 9-6'], ['streaming', 'verv', 'M4 6h12v12H4zM16 10l5-3v10l-5-3'], ['editHandbook', 'medlem', 'M5 4h11l3 3v13H5zM8 9h8M8 13h8M8 17h5']];
   const list = all.filter(s => levelAtLeast(s[1]));
   return list.length ? `<section class="panel"><h2>${t('tools')}</h2><div class="tiles">${list.map(([k, , d]) =>
-    `<a href="#/inn/verktoy/${k}"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="${d}"/></svg>${t(k)}</a>`).join('')}</div></section>` : '';
+    `<a href="#/inn/verktoy/${k}"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="${d}"/></svg>${t(k)}</a>`).join('')}</div><p class="small">${t('sso')}</p></section>` : '';
 }
 function iDash() {
   const p = persona(), g = myGroups()[0], grp = DATA.groups[g];
-  let html = `<div class="greet"><h1>${t('hello')}, ${p.name}</h1>${modeSwitch()}</div>`;
+  let html = `<div class="greet"><h1>${t('hello')}, ${p.name}</h1><p class="small">${during() ? t('demoClock') : STATE.when === 'for' ? t('modeBefore') : t('modeAfter')}</p></div>`;
   if (STATE.persona === 'drift') html += opsPanel(true);
-  if (STATE.fest) {
+  const ann = announceFor(myGroups()).slice(0, 3);
+  if (during()) {
     const nn = nowNext();
     const favNext = DATA.program.filter(x => STATE.fav.includes(x.id) && x.day === DEMO.day && sortKey(x.start) > DEMO.min).sort((a, b) => sortKey(a.start) - sortKey(b.start));
-    html += `<p class="small clock">${t('demoClock')}</p>
-    <section class="panel now"><h2>${t('nowNext')}</h2><ul class="plist">${nn.now.slice(0, 2).map(x => progItem(x, { state: t('liveNow') })).join('')}${nn.next.slice(0, 3).map(x => progItem(x)).join('')}</ul>
-      <a class="more" href="#/program">${t('seeProgram')}</a></section>
+    html += `<section class="panel now"><h2>${t('nowNext')}</h2><ul class="plist">${nn.now.slice(0, 2).map(x => progItem(x, { state: t('liveNow') })).join('')}${nn.next.slice(0, 3).map(x => progItem(x)).join('')}</ul>
+      <a class="more" href="#/program">${t('thisHappens')}</a></section>
     ${favNext.length ? `<section class="panel"><h2>${t('myProgram')}</h2><ul class="plist">${favNext.map(x => progItem(x)).join('')}</ul></section>` : ''}
-    <section class="panel group" style="--g:${grp.c}"><h2>${t('yourGroup')}: ${esc(grp.n)}</h2><p>${t('meetsAt')} ${g === 'kjokken' ? 'Kjøkkenet' : 'Deltakerhuben'}.</p><a class="more" href="#/inn/gruppe">${esc(grp.n)}</a></section>
-    <section class="panel"><h2>${t('board')}</h2><ul class="tlist">${DATA.tavla.filter(c => c.p === 'kritisk' || STATE.taken.includes(c.id)).slice(0, 3).map(c => boardCard(c)).join('')}</ul><a class="more" href="#/inn/tavla">${t('board')}</a></section>
+    <section class="panel"><h2>${t('announcements')}</h2>${announceList(ann)}<a class="more" href="#/inn/kunngjoringer">${t('allAnnouncements')}</a></section>
+    <section class="panel group" style="--g:${grp.c}"><h2 class="gtitle">${groupIcon(g)}${t('yourGroup')}: ${esc(grp.n)}</h2><p>${t('meetsAt')} ${g === 'kjokken' ? 'Kjøkkenet' : 'Deltakerhuben'}, 12:30.</p>${DATA.groupToday[g] ? `<p><strong>${t('today')}:</strong> ${facts(DATA.groupToday[g])}</p>` : ''}<a class="more" href="#/inn/gruppe">${esc(grp.n)}</a></section>
+    <section class="panel"><h2>${t('board')}</h2><ul class="tlist">${DATA.tavla.filter(c => c.p === 'kritisk' || STATE.taken.includes(c.id)).slice(0, 2).map(c => boardCard(c)).join('')}</ul><a class="more" href="#/inn/tavla">${t('wholeBoard')}</a></section>
     <section class="panel care"><h2>${t('care')}</h2><p>${t('careSub')}</p></section>`;
   } else {
     if (levelAtLeast('medlem')) {
       html += `<section class="panel"><h2>${t('deadlines')}</h2>${deadlineRows(myGroups(), 5)}<p class="monthly"><span class="swatch" style="background:${DATA.groups.koord.c}"></span>${esc(DATA.monthly.t)}</p><a class="more" href="#/inn/arshjul">${t('yearWheel')}</a></section>`;
     } else {
       const days = Math.max(0, Math.round((iso(E.next.from) - new Date()) / 864e5));
-      html += `<section class="panel count"><h2>${t('nextFestival')}</h2><p class="big">${range(E.next.from, E.next.to)}</p><p>${inDays(days)}</p></section>
-      <section class="panel group" style="--g:${grp.c}"><h2>${t('yourGroup')}: ${esc(grp.n)}</h2><p>${esc(grp.d)}</p><a class="more" href="#/inn/gruppe">${esc(grp.n)}</a></section>`;
+      html += `<section class="panel count"><h2>${t('nextFestival')}</h2><p class="big">${range(E.next.from, E.next.to)}</p><p>${inDays(days)}</p></section>`;
     }
+    html += `<section class="panel"><h2>${t('announcements')}</h2>${announceList(ann)}<a class="more" href="#/inn/kunngjoringer">${t('allAnnouncements')}</a></section>`;
+    const key = g + E.next.from.slice(0, 4), done = (STATE.checks[key] || []).length;
+    html += `<section class="panel group" style="--g:${grp.c}"><h2 class="gtitle">${groupIcon(g)}${t('yourGroup')}: ${esc(grp.n)}</h2><p>${esc(grp.d)}</p><div class="progress"><span style="width:${Math.round(done / grp.tasks.length * 100)}%"></span></div><p class="small">${t('todoNote', { n: done, m: grp.tasks.length, y: E.next.from.slice(0, 4) })}</p><a class="more" href="#/inn/gruppe">${t('tasks')}</a></section>`;
     if (levelAtLeast('verv')) {
       const mine = DATA.bidrag.filter(b => b.mine), open = mine.reduce((n, b) => n + b.open.length, 0);
       html += `<section class="panel"><h2>${t('yourContrib')}</h2><p class="big">${mine.length} <span>${t('openItems').toLowerCase()}: ${open}</span></p><ul class="blist">${mine.map(bidragRow).join('')}</ul><a class="more" href="#/inn/koordinering">${t('coord')}</a></section>`;
     }
+    if (F2) html += `<section class="panel"><h2>${t('tasksTitle')} ${f2tag()}</h2>${taskRows(STATE.tasks.filter(x => x.to === persona().name || x.by === persona().name).slice(0, 3))}<a class="more" href="#/inn/oppgaver">${t('tasksTitle')}</a></section>`;
     html += shortcuts();
     html += `<section class="panel"><h2>${t('rides')}</h2><p>${t('ridesLead')}</p><a class="more" href="#/inn/samreise">${t('rides')}</a></section>`;
   }
+  if (F2 && !STATE.member) html += `<section class="panel member"><h2>${t('joinAssoc')} ${f2tag()}</h2><p>${t('joinShort')}</p><a class="more" href="#/inn/medlemskap">${t('readMore')}</a></section>`;
   return html;
 }
 
@@ -558,21 +712,39 @@ function iDash() {
 function iMyProgram() {
   const favs = DATA.program.filter(p => STATE.fav.includes(p.id));
   let html = `<h1>${t('myProgram')}</h1>`;
-  if (!favs.length) return html + `<p class="empty">${t('myProgramEmpty')}</p><a class="btn btn-dark" href="#/program">${t('seeProgram')}</a>`;
+  if (!favs.length) return html + `<p class="empty">${t('myProgramEmpty')}</p><a class="btn btn-dark" href="#/program/dag">${t('dayByDay')}</a>`;
   [0, 1, 2, 3, 4, 5].forEach(d => {
     const l = favs.filter(p => p.day === d).sort((a, b) => sortKey(a.start) - sortKey(b.start));
     if (l.length) html += `<h2 class="daytitle">${fmt(dayDate(d), { weekday: 'long', day: 'numeric', month: 'long' })}</h2><ul class="plist">${l.map(p => progItem(p)).join('')}</ul>`;
   });
-  return html + `<p><a class="btn" href="#/program">${t('seeProgram')}</a></p>`;
+  return html + `<p class="small">${t('offline')}</p><p><a class="btn" href="#/program/dag">${t('dayByDay')}</a></p>`;
 }
 
 /* ---------- Tavla ---------- */
 function iBoard() {
   const mine = DATA.tavla.filter(c => STATE.taken.includes(c.id));
+  const fit = c => !STATE.energy || c.energy <= STATE.energy;
+  const chip = (v, label) => `<button data-act="energy" data-v="${v}" aria-pressed="${STATE.energy === v}">${label}</button>`;
   return `<h1>${t('board')}</h1><p class="lead">${t('boardLead')}</p>
+    <div class="chips">${chip(0, t('allEnergy'))}${chip(1, L(DATA.energy[1]))}${chip(2, t('upToMedium'))}${chip(3, t('anyEnergy'))}</div>
+    <p><button class="btn" data-act="print">${t('printBoard')}</button></p>
     ${mine.length ? `<section class="panel"><h2>${t('yourTasks')}</h2><ul class="tlist">${mine.map(c => boardCard(c)).join('')}</ul></section>` : ''}
-    ${['kritisk', 'viktig', 'kjekt'].map(p => { const l = DATA.tavla.filter(c => c.p === p && !STATE.taken.includes(c.id));
-      return l.length ? `<h2 class="prio p-${p}">${t(p)}</h2><ul class="tlist">${l.map(c => boardCard(c)).join('')}</ul>` : ''; }).join('')}`;
+    ${['kritisk', 'viktig', 'kjekt'].map(p => { const l = DATA.tavla.filter(c => c.p === p && !STATE.taken.includes(c.id) && fit(c));
+      return l.length ? `<h2 class="prio p-${p}">${t(p)}</h2><ul class="tlist">${l.map(c => boardCard(c)).join('')}</ul>` : ''; }).join('')}
+    <p class="small">${t('boardSource')}</p>
+    <div class="print-only"><h1>${t('board')} – ${t('demoClock')}</h1><ul class="tlist">${DATA.tavla.map(c => boardCard(c, true)).join('')}</ul></div>`;
+}
+
+/* ---------- Folk ---------- */
+function iFolk() {
+  const gs = DATA.festivalGroups;
+  const list = DATA.folk.filter(f => STATE.folkG === 'all' || f.g.includes(STATE.folkG)).filter(f => !(STATE.hidden && f.n === persona().name));
+  const chip = (v, label, c) => `<button data-act="folkg" data-v="${v}" aria-pressed="${STATE.folkG === v}">${c ? `<span class="dot" style="background:${c}"></span>` : ''}${label}</button>`;
+  return `<h1>${t('folk')}</h1><p class="lead">${t('folkLead')}</p>
+    <div class="chips">${chip('all', t('all'))}${gs.map(g => chip(g, esc(groupName(g)), DATA.groups[g].c)).join('')}</div>
+    ${STATE.folkG !== 'all' && DATA.groupToday[STATE.folkG] ? `<section class="panel group" style="--g:${DATA.groups[STATE.folkG].c}"><h2 class="gtitle">${groupIcon(STATE.folkG)}${t('groupToday')}</h2><p>${facts(DATA.groupToday[STATE.folkG])}</p></section>` : ''}
+    <ul class="folk">${list.map(f => `<li><span class="avatar sm">${esc(f.n[0])}</span><strong>${esc(f.n)}</strong><span class="fg">${f.g.map(g => `<span class="gchip" style="--g:${DATA.groups[g].c}">${esc(groupName(g))}</span>`).join('')}</span></li>`).join('')}</ul>
+    <section class="panel"><h2>${t('privacy')}</h2><label class="switch"><input type="checkbox" data-act="hide"${STATE.hidden ? ' checked' : ''}><span>${t('hideMe')}</span></label><p class="small">${t('folkPrivacy')}</p></section>`;
 }
 
 /* ---------- Årshjul ---------- */
@@ -583,33 +755,34 @@ function wedge(r0, r1, a0, a1) {
   return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r1} ${r1} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}A${r0} ${r0} 0 0 0 ${x3.toFixed(1)} ${y3.toFixed(1)}Z`;
 }
 function wheelGroups() { return STATE.wGroup === 'mine' ? myGroups() : STATE.wGroup === 'all' ? Object.keys(DATA.groups) : [STATE.wGroup]; }
+const RAINBOW12 = ['#F0604C', '#F27A3D', '#F5932E', '#F7C531', '#C9E83A', '#4DF068', '#4DF0A0', '#4DF0D7', '#4DE4F0', '#6FA8F5', '#9B4FD0', '#F04DAF'];
 function wheelSvg() {
   const R0 = 50, W = 9.6, active = wheelGroups(), now = new Date();
   const ringR = g => R0 + RINGS.indexOf(g) * W + W / 2;
   let s = '';
-  RINGS.forEach(g => { s += `<circle cx="180" cy="180" r="${ringR(g)}" fill="none" stroke="${DATA.groups[g].c}" stroke-width="${W - 1}" opacity="${active.includes(g) ? 0.85 : 0.22}"/>`; });
+  RINGS.forEach(g => { s += `<circle cx="180" cy="180" r="${ringR(g)}" fill="none" stroke="${DATA.groups[g].c}" stroke-width="${W - 1}" opacity="${active.includes(g) ? 0.95 : 0.2}"/>`; });
   for (let m = 0; m < 12; m++) {
-    const a0 = m * 30, a1 = a0 + 30, [lx, ly] = polar(163, a0 + 15), sel = STATE.wMonth === m + 1;
-    s += `<path d="${wedge(147, 153, a0 + 0.8, a1 - 0.8)}" fill="hsl(${(m * 30 + 10) % 360} 75% 80%)"/>`;
-    if (sel) s += `<path d="${wedge(R0, 147, a0, a1)}" fill="#000033" opacity="0.12"/>`;
-    s += `<line x1="${polar(R0, a0)[0].toFixed(1)}" y1="${polar(R0, a0)[1].toFixed(1)}" x2="${polar(147, a0)[0].toFixed(1)}" y2="${polar(147, a0)[1].toFixed(1)}" stroke="#fff" stroke-width="1.2"/>`;
+    const a0 = m * 30, a1 = a0 + 30, [lx, ly] = polar(165, a0 + 15), sel = STATE.wMonth === m + 1;
+    s += `<path d="${wedge(147, 154, a0 + 0.8, a1 - 0.8)}" fill="${RAINBOW12[(m + 6) % 12]}"/>`;
+    if (sel) s += `<path d="${wedge(R0, 147, a0, a1)}" fill="#433B35" opacity="0.14"/>`;
+    s += `<line x1="${polar(R0, a0)[0].toFixed(1)}" y1="${polar(R0, a0)[1].toFixed(1)}" x2="${polar(147, a0)[0].toFixed(1)}" y2="${polar(147, a0)[1].toFixed(1)}" stroke="#FDFBF9" stroke-width="1.2"/>`;
     s += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="middle" class="wm${sel ? ' sel' : ''}">${monthName(m + 1, 'short').replace('.', '')}</text>`;
   }
-  /* festivaluka */
-  s += `<path d="${wedge(153, 158, 6 * 30 + 26, 7 * 30 + 1)}" fill="#000033"/>`;
+  s += `<path d="${wedge(154, 159, 6 * 30 + 26, 7 * 30 + 1)}" fill="#433B35"/>`;
   DATA.deadlines.forEach(d => {
     if (!RINGS.includes(d.g)) return;
     const [x, y] = polar(ringR(d.g), (d.m - 1) * 30 + (d.d - 1) / 31 * 30), on = active.includes(d.g);
-    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on ? 4.4 : 2.4}" fill="${on ? '#000033' : '#00003355'}" stroke="#fff" stroke-width="${on ? 1.2 : 0}"/>`;
+    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on ? 4.4 : 2.4}" fill="${on ? '#433B35' : '#433B3555'}" stroke="#FDFBF9" stroke-width="${on ? 1.2 : 0}"/>`;
   });
-  const [tx, ty] = polar(158, now.getMonth() * 30 + (now.getDate() - 1) / 31 * 30), [ux, uy] = polar(R0 - 6, now.getMonth() * 30 + (now.getDate() - 1) / 31 * 30);
-  s += `<line x1="${ux.toFixed(1)}" y1="${uy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" stroke="#c43d55" stroke-width="2" stroke-linecap="round"/>`;
+  const ang = now.getMonth() * 30 + (now.getDate() - 1) / 31 * 30, [tx, ty] = polar(159, ang), [ux, uy] = polar(R0 - 6, ang);
+  s += `<line x1="${ux.toFixed(1)}" y1="${uy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" stroke="#F0604C" stroke-width="2.4" stroke-linecap="round"/>`;
   for (let m = 0; m < 12; m++) s += `<path d="${wedge(R0, 176, m * 30, m * 30 + 30)}" fill="transparent" class="wtap" data-act="wmonth" data-v="${m + 1}" role="button" tabindex="0" aria-label="${monthName(m + 1)}"/>`;
-  s += `<circle cx="180" cy="180" r="${R0 - 8}" fill="#fff"/><text x="180" y="${STATE.wMonth ? 178 : 185}" text-anchor="middle" class="wc">${STATE.wMonth ? monthName(STATE.wMonth, 'short').replace('.', '') : now.getFullYear()}</text>`;
+  s += `<circle cx="180" cy="180" r="${R0 - 8}" fill="#FDFBF9"/><text x="180" y="${STATE.wMonth ? 178 : 186}" text-anchor="middle" class="wc">${STATE.wMonth ? monthName(STATE.wMonth, 'short').replace('.', '') : now.getFullYear()}</text>`;
   if (STATE.wMonth) s += `<text x="180" y="194" text-anchor="middle" class="wc2" data-act="wmonth" data-v="0" role="button" tabindex="0">${t('wholeYear')}</text>`;
-  return `<svg class="wheel" viewBox="0 0 360 360" role="img" aria-label="${t('yearWheel')}">${s}</svg>`;
+  return `<svg class="wheel" id="wheel" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360" role="img" aria-label="${t('yearWheel')}">${s}</svg>`;
 }
 function iWheel() {
+  if (!levelAtLeast('medlem')) return `<h1>${t('yearWheel')}</h1><p class="empty">${t('forActive')}</p>`;
   const active = wheelGroups();
   const rows = DATA.deadlines.filter(d => active.includes(d.g) && (!STATE.wMonth || d.m === STATE.wMonth)).sort((a, b) => a.m - b.m || a.d - b.d);
   const chip = (v, label, c) => `<button data-act="wgroup" data-v="${v}" aria-pressed="${STATE.wGroup === v}">${c ? `<span class="dot" style="background:${c}"></span>` : ''}${label}</button>`;
@@ -617,6 +790,7 @@ function iWheel() {
     <div class="chips">${chip('mine', t('myGroups'))}${chip('all', t('all'))}${RINGS.slice().reverse().map(g => chip(g, esc(DATA.groups[g].n), DATA.groups[g].c)).join('')}</div>
     <div class="wheelwrap">${wheelSvg()}
       <div class="wheellist">
+        <p><button class="btn" data-act="dlwheel">${t('downloadWheel')}</button></p>
         <h2>${STATE.wMonth ? monthName(STATE.wMonth) : t('wholeYear')}</h2>
         ${rows.length ? `<ul class="dlist">${rows.map(d => `<li><span class="swatch" style="background:${DATA.groups[d.g].c}"></span><div><strong>${esc(d.t)}</strong><span>${esc(DATA.groups[d.g].n)}</span></div><time>${d.d}. ${monthName(d.m, 'short')}</time></li>`).join('')}</ul>` : `<p class="empty">${t('noDeadlines')}</p>`}
         ${active.includes('koord') ? `<p class="monthly"><span class="swatch" style="background:${DATA.groups.koord.c}"></span>${esc(DATA.monthly.t)}</p>` : ''}
@@ -626,42 +800,51 @@ function iWheel() {
 
 /* ---------- Gruppa ---------- */
 function iGroup() {
-  const k = myGroups()[0], g = DATA.groups[k];
-  return `<h1><span class="swatch big" style="background:${g.c}"></span>${esc(g.n)}</h1>${groupBody(k)}
-    ${STATE.persona === 'deltaker' ? `<section class="panel"><h2>${t('changeGroup')}</h2><label class="field"><span class="sr">${t('changeGroup')}</span><select data-act="group">${DATA.festivalGroups.map(x => `<option value="${x}"${x === k ? ' selected' : ''}>${esc(DATA.groups[x].n)}</option>`).join('')}</select></label><p class="small">Du kan bytte når som helst, og gå til og fra flere grupper.</p></section>` : ''}
-    <p><a class="btn" href="#/handbok/${k}">${t('handbook')}</a></p>`;
+  const k = myGroups()[0], g = DATA.groups[k], ann = DATA.announce.filter(a => a.ch === k);
+  const members = DATA.folk.filter(f => f.g.includes(k));
+  return `<h1 class="gtitle">${groupIcon(k, 30)}${esc(g.n)}</h1>
+    ${ann.length ? `<section class="panel"><h2>${t('announcements')}</h2>${announceList(ann)}</section>` : ''}
+    ${groupBody(k, true)}
+    <section class="panel"><h2>${t('members')} (${members.length})</h2><p class="avatars">${members.map(m => `<span class="avatar sm" title="${esc(m.n)}">${esc(m.n[0])}</span>`).join('')}</p><p class="small">${members.map(m => esc(m.n)).join(', ')}</p></section>
+    ${F2 ? `<section class="panel"><h2>${t('channel')} ${f2tag()}</h2><p>${t('channelLead')}</p><button class="btn" data-act="chatopen" data-v="c-${k}">${t('openChannel')}</button></section>` : ''}
+    ${STATE.persona === 'deltaker' ? `<section class="panel"><h2>${t('changeGroup')}</h2><label class="field"><span class="sr">${t('changeGroup')}</span><select data-act="group">${DATA.festivalGroups.map(x => `<option value="${x}"${x === k ? ' selected' : ''}>${esc(DATA.groups[x].n)}</option>`).join('')}</select></label><p class="small">${t('changeGroupNote')}</p></section>` : ''}
+    <p><a class="btn" href="#/handbok/gruppe/${k}">${t('inHandbook')}</a></p>`;
 }
 
 /* ---------- Koordinering ---------- */
 function bidragRow(b) {
   return `<li class="brow"><div><strong>${esc(b.t)}</strong><span><span class="dot" style="background:${cat(b.k).c}"></span>${L(cat(b.k))}</span></div>
-    <ol class="cps" aria-label="Sjekkpunkter">${b.cp.map((v, i) => `<li class="${v ? 'on' : ''}" title="${DATA.checkpoints[i]}"><span class="sr">${DATA.checkpoints[i]}: ${v ? 'ja' : 'nei'}</span></li>`).join('')}</ol>
+    <ol class="cps" aria-label="${t('checkpoints')}">${b.cp.map((v, i) => `<li class="${v ? 'on' : ''}" title="${DATA.checkpoints[i]}"><span class="sr">${DATA.checkpoints[i]}: ${v ? 'ja' : 'nei'}</span></li>`).join('')}</ol>
     ${b.open.length ? `<p class="open">${b.open.map(esc).join(', ')}</p>` : `<p class="clear">${t('allClear')}</p>`}</li>`;
 }
 function iCoord() {
-  if (!levelAtLeast('medlem')) return `<h1>${t('coord')}</h1><p class="empty">Denne delen er for dem som har ansvar for bidrag.</p>`;
+  if (!levelAtLeast('medlem')) return `<h1>${t('coord')}</h1><p class="empty">${t('forActive')}</p>`;
   return `<h1>${t('coord')}</h1><p class="note">${t('coordNote')}</p>
     <p class="legend">${DATA.checkpoints.map(c => `<span>${c}</span>`).join('')}</p>
     <h2>${t('yourContrib')}</h2><ul class="blist">${DATA.bidrag.filter(b => b.mine).map(bidragRow).join('')}</ul>
     <h2>${t('allContrib')}</h2><ul class="blist">${DATA.bidrag.filter(b => !b.mine).map(bidragRow).join('')}</ul>
-    <p class="note">Når «Publisert» settes, opprettes programposten og bidragsyteren på nettsiden. Honorar, kontaktinfo, reise og overnatting blir her.</p>`;
+    <p class="note">${t('publishNote')}</p>`;
 }
 
 /* ---------- Samreise ---------- */
 function iRides() {
   return `<h1>${t('rides')}</h1><p class="lead">${t('ridesLead')}</p><ul class="rides">${DATA.rides.map(r =>
-    `<li class="${r.dir === 'trenger' ? 'need' : ''}"><span class="tag">${r.dir === 'trenger' ? t('needs') : t('offers')}</span><h3>${r.dir === 'fra' ? 'Fra' : 'Til'} festivalen, ${esc(r.from)}</h3><p>${esc(r.when)}. ${r.seats} ${t('seats')}.</p><p class="small">${esc(r.by)}</p></li>`).join('')}</ul>
-    <p class="small">Eksempler. Erstatter Facebook-gruppa som brukes i dag.</p>`;
+    `<li class="${r.dir === 'trenger' ? 'need' : ''}"><span class="tag">${r.dir === 'trenger' ? t('needs') : t('offers')}</span><h3>${r.dir === 'fra' ? t('fromFest') : t('toFest')}, ${esc(r.from)}</h3><p>${esc(r.when)}. ${r.seats} ${t('seats')}.</p><p class="small">${esc(r.by)}</p></li>`).join('')}</ul>
+    <p class="small">${t('ridesNote')}</p>`;
 }
 
 /* ---------- Mer ---------- */
 function iMore() {
-  const links = [['#/inn/gruppe', t('yourGroup')], ['#/inn/samreise', t('rides')]];
+  const links = [['#/inn/gruppe', t('yourGroup')], ['#/inn/kunngjoringer', t('announcements')], ['#/inn/samreise', t('rides')]];
   if (levelAtLeast('medlem')) links.push(['#/inn/arshjul', t('yearWheel')], ['#/inn/koordinering', t('coord')]);
   if (levelAtLeast('drift')) links.push(['#/inn/drift', t('ops')]);
+  const f2 = F2 ? [['#/inn/oppgaver', t('tasksTitle')], ['#/inn/moterom', t('meetingRooms')], ['#/inn/utlegg', t('receipts')], ['#/inn/medlemskap', t('membership')]].concat(myGroups().includes('styret') || levelAtLeast('drift') ? [['#/inn/husutleie', t('house')]] : []) : [];
   links.push(['#/handbok', t('handbook')], ['#/praktisk', t('practical')], ['#/', t('toSite')], ['#/om', t('about')]);
-  return `<h1>${t('more')}</h1><ul class="morelist">${links.map(l => `<li><a href="${l[0]}">${l[1]}</a></li>`).join('')}</ul>${shortcuts()}
-    <section class="panel"><h2>${t('language')}</h2>${langSelect()}</section>`;
+  return `<h1>${t('more')}</h1><ul class="morelist">${links.map(l => `<li><a href="${l[0]}">${l[1]}</a></li>`).join('')}</ul>
+    ${f2.length ? `<h2>${t('phase2')}</h2><ul class="morelist">${f2.map(l => `<li><a href="${l[0]}">${l[1]} ${f2tag()}</a></li>`).join('')}</ul>` : ''}
+    ${shortcuts()}
+    <section class="panel"><h2>${t('language')}</h2>${langSelect()}</section>
+    <section class="panel"><h2>${t('myData')}</h2><p>${t('myDataLead')}</p><p class="actions"><button class="btn" data-act="toast" data-v="${esc(t('exportDone'))}">${t('exportData')}</button></p></section>`;
 }
 function iTool(r) {
   return `<h1>${t(I18N[r.c] ? r.c : 'tools')}</h1><p class="empty">${t('notInProto')}</p><p><a class="btn" href="#/inn">${t('back')}</a></p>`;
@@ -669,12 +852,162 @@ function iTool(r) {
 
 /* ---------- Drift ---------- */
 function opsPanel(compact) {
-  const warn = DATA.services.filter(s => s[1] !== 'ok');
-  return `<section class="panel"><h2>${t('ops')}</h2>${compact ? `<p class="big">${DATA.services.length - warn.length} <span>av ${DATA.services.length} uten merknad</span></p>` : ''}
-    <ul class="svc">${(compact ? warn : DATA.services).map(s => `<li class="${s[1]}"><span class="led"></span><strong>${esc(s[0])}</strong><span>${esc(s[2] || (s[1] === 'ok' ? 'OK' : ''))}</span></li>`).join('')}</ul>
-    ${compact ? `<a class="more" href="#/inn/drift">${t('ops')}</a>` : ''}</section>`;
+  const red = DATA.alerts.filter(a => a.p === 'rod'), warn = DATA.services.filter(s => s[1] !== 'ok');
+  return `<section class="panel ops"><h2>${t('ops')}</h2>
+    ${compact ? `<p class="big">${DATA.services.length - warn.length} <span>${t('ofNoRemark', { n: DATA.services.length })}</span></p>${red.length ? `<p class="alert-line rod">${esc(red[0].what)}</p>` : ''}<a class="more" href="#/inn/drift">${t('opsMessages')}</a>` :
+      `<ul class="svc">${DATA.services.map(s => `<li class="${s[1]}"><span class="led"></span><strong>${esc(s[0])}</strong><span>${esc(s[2] || 'OK')}</span></li>`).join('')}</ul>`}</section>`;
 }
-function iOps() { return `<h1>${t('ops')}</h1><p class="lead">${t('opsLead')}</p>${opsPanel(false)}`; }
+function iOps() {
+  if (!levelAtLeast('drift')) return `<h1>${t('ops')}</h1><p class="empty">${t('forOps')}</p>`;
+  const step = STATE.repair;
+  return `<h1>${t('ops')}</h1><p class="lead">${t('opsLead')}</p>
+    <h2>${t('opsMessages')}</h2>
+    <ul class="alerts">${DATA.alerts.map(a => `<li class="al ${a.p}">
+      <p class="al-top"><span class="prio-badge ${a.p}">${t('prio_' + a.p)}</span><span>${esc(a.when)}</span></p>
+      <h3>${esc(a.what)}</h3>
+      <dl><div><dt>${t('why')}</dt><dd>${esc(a.why)}</dd></div><div><dt>${t('fix')}</dt><dd>${esc(a.fix)}</dd></div><div><dt>${t('link')}</dt><dd><a href="#/inn/drift">${esc(a.link)}</a></dd></div>${a.notify ? `<div><dt>${t('notified')}</dt><dd>${esc(a.notify)}</dd></div>` : ''}</dl>
+      ${a.p !== 'gronn' ? (STATE.claimed.includes(a.id) ? `<p class="claimed">${t('claimedBy', { n: persona().name })}</p>` : `<button class="btn" data-act="claim" data-v="${a.id}">${t('claim')}</button>`) : ''}
+    </li>`).join('')}</ul>
+    <section class="panel repair"><h2>${t('repairTitle')}</h2><p>${t('repairLead')}</p>
+      <pre class="term">$ karlsoy reparer${DATA.repairSteps.slice(0, step).map((s, i) => `\n<b>${i + 1}. ${esc(s[0])}</b>  ${esc(s[1])}`).join('')}${step === 3 ? `\n\n${t('repairAsk')}` : ''}</pre>
+      <p class="actions">${step === 0 ? `<button class="btn btn-dark" data-act="repair" data-v="3">${t('repairRun')}</button>` : step === 3 ? `<button class="btn btn-dark" data-act="repair" data-v="7">${t('repairYes')}</button><button class="btn" data-act="repair" data-v="0">${t('repairNo')}</button>` : `<button class="btn" data-act="repair" data-v="0">${t('repairReset')}</button>`}</p>
+    </section>
+    ${opsPanel(false)}
+    <section class="panel"><h2>${t('envs')}</h2><ul class="envs"><li><strong>${t('envTest')}</strong><span>test.karlsoyfestivalen.no · v1.5.0-rc2</span></li><li><strong>${t('envProd')}</strong><span>karlsoyfestivalen.no · v1.4.2</span></li><li><strong>${t('freeze')}</strong><span>13. juli – 1. august 2027</span></li></ul></section>`;
+}
+
+/* ====================================================================
+   FASE 2 – valgfrie tillegg
+   ==================================================================== */
+/* Discord-kanaler i et vindu */
+function chansFor() { return DATA.channels.filter(c => !c.g || myGroups().includes(c.g)); }
+const chanMsgs = c => c.msgs.concat(STATE.sent[c.id] || []);
+const isMe = m => m.from === persona().name;
+const unreadOf = c => Math.max(0, c.msgs.filter(m => !isMe(m)).length - (STATE.read[c.id] || 0));
+function chatFab() {
+  const n = chansFor().reduce((a, c) => a + unreadOf(c), 0);
+  return `<button class="chatfab" data-act="chat" aria-label="${t('discordChannels')}${n ? ', ' + n + ' ' + t('unread') : ''}">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>${n ? `<span class="badge">${n}</span>` : ''}</button>`;
+}
+function chatPop() {
+  const list = chansFor(), c = byId(DATA.channels, STATE.chatId);
+  if (c) {
+    return `<section class="chatpop" role="dialog" aria-label="#${esc(c.name)}">
+      <header><button class="iconbtn" data-act="chatback" aria-label="${t('back')}">‹</button><h2># ${esc(c.name)}</h2><button class="iconbtn" data-act="chat" aria-label="${t('close')}">×</button></header>
+      <ol class="chat-msgs">${chanMsgs(c).map(m => `<li class="${isMe(m) ? 'me' : ''}"><p class="who-when">${isMe(m) ? t('you') : esc(m.from)}, ${esc(m.when || t('justNow'))}</p><p class="bubble">${esc(m.t)}</p></li>`).join('')}</ol>
+      <form class="chat-form" data-act="chatsend"><label class="sr" for="chat-in">${t('writeMsg')}</label><textarea id="chat-in" rows="1" placeholder="${t('writeMsg')}" required></textarea><button class="btn btn-dark">${t('send')}</button></form>
+      <p class="chat-ro">${t('viaDiscord', { n: persona().name })}</p>
+    </section>`;
+  }
+  return `<section class="chatpop" role="dialog" aria-label="${t('discordChannels')}">
+    <header><h2>${t('discordChannels')}</h2><button class="iconbtn" data-act="chat" aria-label="${t('close')}">×</button></header>
+    <div class="chat-list"><ul>${list.map(x => { const m = chanMsgs(x).slice(-1)[0], n = unreadOf(x);
+      return `<li><button data-act="chatopen" data-v="${x.id}">${x.g ? `<span class="swatch" style="background:${DATA.groups[x.g].c}"></span>` : '<span class="swatch hash">#</span>'}<span><strong># ${esc(x.name)}</strong><span>${esc(m.t)}</span></span>${n ? `<span class="badge">${n}</span>` : `<span class="when">${esc(m.when || t('justNow'))}</span>`}</button></li>`; }).join('')}</ul>
+      <h3>${t('meetingRooms')}</h3><ul>${DATA.voice.map(v => `<li><a class="voice-row" href="#/inn/moterom"><span class="swatch hash">◖</span><span><strong>${esc(v.name)}</strong><span>${v.who.length ? v.who.join(', ') : t('empty')}</span></span></a></li>`).join('')}</ul>
+      <p class="small">${t('chatNote')}</p></div>
+  </section>`;
+}
+function iVoice() {
+  return `<h1>${t('meetingRooms')} ${f2tag()}</h1><p class="lead">${t('voiceLead')}</p>
+    <ul class="voice">${DATA.voice.map(v => `<li><div><h3>${esc(v.name)}</h3>${v.note ? `<p class="small">${esc(v.note)}</p>` : ''}<p class="avatars">${v.who.map(n => `<span class="avatar sm" title="${esc(n)}">${esc(n[0])}</span>`).join('') || `<span class="small">${t('empty')}</span>`}</p></div><a class="btn ${v.who.length ? 'btn-dark' : ''}" href="#/inn/moterom">${t('joinDiscord')}</a></li>`).join('')}</ul>
+    <p class="note">${t('voiceNote')}</p>`;
+}
+
+/* Oppgaver med roller og status */
+const STATUS = ['ny', 'igang', 'ferdig'];
+function taskRows(list) {
+  return list.length ? `<ul class="tasks">${list.map(x => `<li class="task st-${x.status}">
+    <div><p class="kicker">${groupIcon(x.g, 16)}${esc(groupName(x.g))} · ${t('due')} ${esc(x.due)}</p><h3>${esc(x.t)}</h3>
+    <p class="small">${t('role')}: <strong>${esc(x.role)}</strong> · ${x.to ? `${t('assigned')}: ${esc(x.to)}` : t('unassigned')} · ${t('createdBy')} ${esc(x.by)}</p></div>
+    <div class="task-act"><span class="status s-${x.status}">${t('st_' + x.status)}</span>
+      ${x.status !== 'ferdig' && (x.to === persona().name || !x.to) ? `<button class="btn btn-small" data-act="taskstep" data-v="${x.id}">${!x.to ? t('takeRole') : x.status === 'ny' ? t('start') : t('markDone')}</button>` : ''}</div></li>`).join('')}</ul>` : `<p class="empty">${t('noTasks')}</p>`;
+}
+function iTasks() {
+  return `<h1>${t('tasksTitle')} ${f2tag()}</h1><p class="lead">${t('tasksLead')}</p>
+    <p><button class="btn btn-dark" data-act="newtask">${STATE.newTask ? t('close') : t('newTask')}</button></p>
+    ${STATE.newTask ? `<form class="panel form" data-act="addtask">
+      <label class="field"><span>${t('taskName')}</span><input name="t" required></label>
+      <label class="field"><span>${t('role')}</span><input name="role" required placeholder="${t('rolePh')}"></label>
+      <label class="field"><span>${t('group')}</span><select name="g">${myGroups().map(g => `<option value="${g}">${esc(groupName(g))}</option>`).join('')}</select></label>
+      <label class="field"><span>${t('assignTo')}</span><select name="to"><option value="">${t('openForAll')}</option>${DATA.folk.filter(f => f.g.some(g => myGroups().includes(g))).map(f => `<option>${esc(f.n)}</option>`).join('')}</select></label>
+      <label class="field"><span>${t('due')}</span><input name="due" placeholder="1. mai"></label>
+      <button class="btn btn-dark">${t('create')}</button></form>` : ''}
+    <h2>${t('mine')}</h2>${taskRows(STATE.tasks.filter(x => x.to === persona().name || x.by === persona().name))}
+    <h2>${t('openTasks')}</h2>${taskRows(STATE.tasks.filter(x => !x.to && x.by !== persona().name))}
+    <h2>${t('allTasks')}</h2>${taskRows(STATE.tasks.filter(x => x.to && x.to !== persona().name && x.by !== persona().name))}
+    <p class="note">${t('tasksNote')}</p>`;
+}
+
+/* Kvitteringer og utlegg */
+function iReceipts() {
+  const st = { sendt: t('rc_sendt'), godkjent: t('rc_godkjent'), utbetalt: t('rc_utbetalt') };
+  return `<h1>${t('receipts')} ${f2tag()}</h1><p class="lead">${t('receiptsLead')}</p>
+    <form class="panel form" data-act="receipt">
+      <label class="photo"><input type="file" accept="image/*" capture="environment" data-act="photo"><span class="photo-ph" id="photo-ph">${t('takePhoto')}</span></label>
+      <label class="field"><span>${t('whatFor')}</span><input name="t" required placeholder="${t('whatForPh')}"></label>
+      <label class="field"><span>${t('amount')}</span><input name="kr" type="number" inputmode="decimal" required min="1"></label>
+      <label class="field"><span>${t('group')}</span><select name="g">${myGroups().map(g => `<option value="${g}">${esc(groupName(g))}</option>`).join('')}</select></label>
+      <button class="btn btn-dark">${t('sendReceipt')}</button>
+    </form>
+    <h2>${t('myReceipts')}</h2>
+    <ul class="receipts">${STATE.receipts.map(r => `<li><div><strong>${esc(r.t)}</strong><span>${esc(groupName(r.g))} · ${esc(r.date)}</span></div><span class="kr">${r.kr.toLocaleString('nb-NO')} kr</span>
+      <ol class="rsteps">${['sendt', 'godkjent', 'utbetalt'].map((s, i) => `<li class="${['sendt', 'godkjent', 'utbetalt'].indexOf(r.status) >= i ? 'on' : ''}">${st[s]}</li>`).join('')}</ol></li>`).join('')}</ul>
+    <p class="note">${t('receiptsNote')}</p>`;
+}
+
+/* Medlemskap i foreninga */
+function memberCta() {
+  return `<section class="wrap block membercta"><div><h2>${t('joinAssoc')} ${f2tag()}</h2><p>${t('joinShort')}</p></div><a class="btn btn-dark" href="#/bli-medlem">${t('readMore')}</a></section>`;
+}
+function memberInfo() {
+  return `<div class="rights"><div><h3>${t('rights')}</h3><ul class="ticks"><li>${t('r1')}</li><li>${t('r2')}</li><li>${t('r3')}</li></ul></div>
+    <div><h3>${t('duties')}</h3><ul class="ticks"><li>${t('d1')}</li><li>${t('d2')}</li><li>${t('d3')}</li></ul></div></div>`;
+}
+function pJoin() {
+  return `<div class="wrap narrow"><h1>${t('joinAssoc')} ${f2tag()}</h1><p class="lead">${t('joinLead')}</p>${memberInfo()}
+    ${STATE.member ? `<p class="ok">${t('youAreMember')}</p>` : `<form class="panel form" data-act="join"><label class="field"><span>${t('name')}</span><input required autocomplete="name"></label><label class="field"><span>${t('email')}</span><input type="email" required autocomplete="email"></label><button class="btn btn-dark">${t('payJoin')}</button></form>`}
+    <p class="note">${t('joinNote')}</p></div>`;
+}
+function iMember() {
+  const voters = DATA.folk.slice(0, 18);
+  return `<h1>${t('membership')} ${f2tag()}</h1>
+    ${STATE.member ? `<section class="panel count"><h2>${t('youAreMember')}</h2><p>${t('memberUntil')}</p></section>` : `<section class="panel"><h2>${t('joinAssoc')}</h2><p>${t('joinLead')}</p><button class="btn btn-dark" data-act="becomemember">${t('payJoin')}</button></section>`}
+    ${memberInfo()}
+    ${myGroups().includes('styret') || levelAtLeast('verv') ? `<section class="panel"><h2>${t('voters')}</h2><p class="small">${t('votersNote')}</p><p>${voters.map(v => esc(v.n)).join(', ')}</p><p class="big">${voters.length} <span>${t('withVote')}</span></p><button class="btn" data-act="toast" data-v="${esc(t('exportDone'))}">${t('exportList')}</button></section>` : ''}`;
+}
+
+/* Husutleie */
+function houseCal() {
+  const m = STATE.houseMonth, booked = (DATA.house.booked[m] || []).concat(STATE.houseReq.filter(r => r.m === m).map(r => r.d));
+  const first = new Date(2027, m - 1, 1), days = new Date(2027, m, 0).getDate(), off = (first.getDay() + 6) % 7;
+  let cells = '';
+  for (let i = 0; i < off; i++) cells += '<span></span>';
+  for (let d = 1; d <= days; d++) { const b = booked.includes(d), mine = STATE.houseReq.some(r => r.m === m && r.d === d);
+    cells += `<button class="${b ? 'booked' : ''}${mine ? ' mine' : ''}" data-act="houseday" data-v="${d}" ${b && !mine ? 'disabled' : ''} aria-label="${d}. ${monthName(m)}${b ? ', ' + t('booked') : ''}">${d}</button>`; }
+  return `<div class="cal-head"><button class="iconbtn" data-act="housemonth" data-v="-1" aria-label="${t('prev')}">‹</button><strong>${monthName(m)} 2027</strong><button class="iconbtn" data-act="housemonth" data-v="1" aria-label="${t('next')}">›</button></div>
+    <div class="cal">${['ma', 'ti', 'on', 'to', 'fr', 'lø', 'sø'].map(d => `<span class="dow">${d}</span>`).join('')}${cells}</div>
+    <p class="small"><span class="key booked"></span>${t('booked')} <span class="key mine"></span>${t('yourRequest')}</p>`;
+}
+function pHouse() {
+  return `<div class="wrap narrow"><h1>${t('house')} ${f2tag()}</h1><figure class="work-img">${img('hb-huset', '')}</figure><p class="lead">${t('houseLead')}</p>
+    <div class="chips">${DATA.house.units.map((u, i) => `<button data-act="houseunit" data-v="${i}" aria-pressed="${STATE.houseUnit === i}">${esc(u)}</button>`).join('')}</div>
+    ${houseCal()}<p class="note">${t('houseNote')}</p></div>`;
+}
+function iHouseAdmin() {
+  return `<h1>${t('house')} ${f2tag()}</h1><p class="lead">${t('houseAdminLead')}</p>${houseCal()}
+    <h2>${t('requests')}</h2>${STATE.houseReq.length ? `<ul class="receipts">${STATE.houseReq.map(r => `<li><div><strong>${r.d}. ${monthName(r.m)}</strong><span>${esc(DATA.house.units[r.u || 0])}</span></div><span class="status s-ny">${t('st_ny')}</span></li>`).join('')}</ul>` : `<p class="empty">${t('noRequests')}</p>`}`;
+}
+
+/* Arkiv og verktøykasse */
+function pArchive() {
+  return `<div class="wrap"><h1>${t('archive')} ${f2tag()}</h1><p class="lead narrowtext">${t('archiveLead')}</p>
+    <div class="archive">${DATA.archive.map(a => `<a class="arch" href="#/arkiv"><span class="arch-img">${img(a.img, '')}</span><strong>${a.y}</strong><span>${esc(a.t)}${a.n ? ` · ${t('nPosts', { n: a.n })}` : ` · ${t('toBuild')}`}</span></a>`).join('')}</div></div>`;
+}
+function pToolkit() {
+  return `<div class="hb-hero"><div class="wrap"><p class="kicker">${t('toolkit')} ${f2tag()}</p><h1>${t('toolkitTitle')}</h1><p class="lead narrowtext">${t('toolkitLead')}</p></div></div>
+    <div class="wrap"><div class="toolkit">${DATA.toolkit.map((x, i) => `<article class="tk" style="--c:${RAINBOW12[i * 2]}"><span class="tk-n">${i + 1}</span><h2>${esc(x.title)}</h2><p>${esc(x.lead)}</p><button class="btn btn-small" data-act="toast" data-v="${esc(t('sheetDl'))}">${esc(x.sheet)}</button></article>`).join('')}</div>
+    <p class="small">${t('toolkitSrc')}</p></div>`;
+}
 
 /* ====================================================================
    Hendelser
@@ -682,23 +1015,48 @@ function iOps() { return `<h1>${t('ops')}</h1><p class="lead">${t('opsLead')}</p
 const toggle = (arr, v) => { const i = arr.indexOf(v); i < 0 ? arr.push(v) : arr.splice(i, 1); };
 const ACTIONS = {
   menu() { STATE.menu = !STATE.menu; },
+  sub() { STATE.sub = !STATE.sub; },
   sheet() { STATE.sheet = !STATE.sheet; },
+  when(v) { STATE.when = v; },
   day(v) { STATE.day = +v; },
   cat(v) { STATE.cat = v; },
   fav(v) { toggle(STATE.fav, v); },
   take(v) { toggle(STATE.taken, v); },
-  fest(v) { STATE.fest = v === '1'; },
-  persona(v) { STATE.persona = v; STATE.sheet = false; STATE.wGroup = 'mine'; STATE.chat = false; STATE.chatId = null; if (['arshjul', 'koordinering', 'drift'].includes(route().b)) location.hash = '#/inn'; },
+  energy(v) { STATE.energy = +v; },
+  folkg(v) { STATE.folkG = v; },
+  persona(v) { STATE.persona = v; STATE.sheet = false; STATE.wGroup = 'mine'; STATE.chat = false; STATE.chatId = null; if (['arshjul', 'koordinering', 'drift', 'husutleie'].includes(route().b)) location.hash = '#/inn'; },
   logout() { STATE.sheet = false; },
   wmonth(v) { STATE.wMonth = +v === STATE.wMonth ? null : (+v || null); },
   wgroup(v) { STATE.wGroup = v; },
+  print() { setTimeout(() => window.print(), 50); },
+  dlwheel() {
+    const svg = document.getElementById('wheel').outerHTML.replace('<svg', '<svg font-family="Manrope, sans-serif"');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })); a.download = 'arshjul-karlsoyfestivalen.svg'; a.click();
+  },
+  claim(v) { if (!STATE.claimed.includes(v)) STATE.claimed.push(v); STATE.toast = t('claimToast'); },
+  repair(v) { STATE.repair = +v; },
+  toast(v) { STATE.toast = v; },
   chat() { STATE.chat = !STATE.chat; STATE.chatId = null; },
   chatback() { STATE.chatId = null; },
-  chatopen(v) { STATE.chatId = v; const c = byId(DATA.chats, v); STATE.read[v] = c.msgs.filter(m => !isMe(m)).length; }
+  chatopen(v) { STATE.chat = true; STATE.chatId = v; const c = byId(DATA.channels, v); if (c) STATE.read[v] = c.msgs.filter(m => !isMe(m)).length; },
+  newtask() { STATE.newTask = !STATE.newTask; },
+  taskstep(v) {
+    const x = STATE.tasks.find(k => k.id === v);
+    if (!x.to) { x.to = persona().name; STATE.toast = t('toastTaken', { r: x.role }); }
+    else { x.status = STATUS[Math.min(2, STATUS.indexOf(x.status) + 1)]; if (x.status === 'ferdig') STATE.toast = t('toastDone', { n: x.by }); }
+  },
+  becomemember() { STATE.member = true; STATE.toast = t('youAreMember'); },
+  housemonth(v) { STATE.houseMonth = Math.min(12, Math.max(1, STATE.houseMonth + +v)); },
+  houseunit(v) { STATE.houseUnit = +v; },
+  houseday(v) {
+    const d = +v, m = STATE.houseMonth, i = STATE.houseReq.findIndex(r => r.m === m && r.d === d);
+    if (i >= 0) STATE.houseReq.splice(i, 1); else { STATE.houseReq.push({ m, d, u: STATE.houseUnit }); STATE.toast = t('houseToast'); }
+  }
 };
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
-  if (!el || el.tagName === 'SELECT' || el.tagName === 'FORM') return;
+  if (!el || el.tagName === 'SELECT' || el.tagName === 'FORM' || el.tagName === 'INPUT') return;
+  if (STATE.sub && !el.closest('.dd')) STATE.sub = false;
   const act = ACTIONS[el.dataset.act];
   if (!act) return;
   if (el.tagName !== 'A') e.preventDefault();
@@ -708,26 +1066,43 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('svg [data-act]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
-  if (e.key === 'Escape' && (STATE.menu || STATE.sheet || STATE.chat)) { STATE.menu = STATE.sheet = STATE.chat = false; render(true); }
+  if (e.key === 'Escape' && (STATE.menu || STATE.sheet || STATE.chat || STATE.sub)) { STATE.menu = STATE.sheet = STATE.chat = STATE.sub = false; render(true); }
   if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'chat-in') { e.preventDefault(); e.target.form.requestSubmit(); }
 });
 document.addEventListener('change', e => {
-  const el = e.target.closest('select[data-act]');
+  const el = e.target.closest('[data-act]');
   if (!el) return;
-  if (el.dataset.act === 'lang') STATE.lang = el.value;
-  if (el.dataset.act === 'group') STATE.group = el.value;
+  const a = el.dataset.act;
+  if (a === 'lang') STATE.lang = el.value;
+  else if (a === 'group') STATE.group = el.value;
+  else if (a === 'venue') STATE.venue = el.value;
+  else if (a === 'hide') STATE.hidden = el.checked;
+  else if (a === 'check') { const [g, i] = el.dataset.v.split('|'), key = g + E.next.from.slice(0, 4); STATE.checks[key] = STATE.checks[key] || []; toggle(STATE.checks[key], +i); }
+  else if (a === 'photo') {
+    const f = el.files[0], ph = document.getElementById('photo-ph');
+    if (f && ph) { const u = URL.createObjectURL(f); ph.innerHTML = `<img src="${u}" alt="${esc(t('receiptPhoto'))}">`; }
+    return;
+  } else return;
   saveState(); render(true);
 });
+document.addEventListener('input', e => {
+  if (e.target.dataset.act === 'q') { STATE.q = e.target.value; const pos = e.target.selectionStart; render(true); const inp = document.querySelector('[data-act="q"]'); if (inp) { inp.focus(); inp.setSelectionRange(pos, pos); } }
+});
 document.addEventListener('submit', e => {
-  if (e.target.dataset.act === 'subscribe') { e.preventDefault(); STATE.subscribed = true; render(true); }
-  if (e.target.dataset.act === 'chatsend') {
-    e.preventDefault();
+  const a = e.target.dataset.act; if (!a) return;
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  if (a === 'subscribe') STATE.subscribed = true;
+  if (a === 'chatsend') {
     const txt = e.target.querySelector('textarea').value.trim();
     if (!txt || !STATE.chatId) return;
     (STATE.sent[STATE.chatId] = STATE.sent[STATE.chatId] || []).push({ from: persona().name, t: txt, when: '' });
-    saveState(); render(true);
-    const inp = document.getElementById('chat-in'); if (inp) inp.focus();
   }
+  if (a === 'addtask') { STATE.tasks.unshift({ id: 'o' + Date.now(), t: fd.get('t'), role: fd.get('role'), g: fd.get('g'), to: fd.get('to') || null, by: persona().name, status: 'ny', due: fd.get('due') || '–' }); STATE.newTask = false; STATE.toast = fd.get('to') ? t('toastAssigned', { n: fd.get('to') }) : t('toastOpen'); }
+  if (a === 'receipt') { STATE.receipts.unshift({ id: 'k' + Date.now(), t: fd.get('t'), kr: +fd.get('kr'), g: fd.get('g'), date: new Date().toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit', year: '2-digit' }), status: 'sendt' }); STATE.toast = t('receiptSent'); }
+  if (a === 'join') { STATE.member = true; STATE.toast = t('youAreMember'); }
+  saveState(); render(true);
+  const inp = document.getElementById('chat-in'); if (inp) inp.focus();
 });
-window.addEventListener('hashchange', () => { STATE.menu = false; STATE.sheet = false; STATE.chat = false; render(false); });
+window.addEventListener('hashchange', () => { STATE.menu = false; STATE.sub = false; STATE.sheet = false; STATE.chat = false; STATE.chatId = null; STATE.repair = 0; render(false); });
 render(false);
