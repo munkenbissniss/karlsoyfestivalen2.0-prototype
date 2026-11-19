@@ -175,7 +175,8 @@ DATA.people = {
   antrushin: { n: 'Andrei Antrushin', k: 'musikk', b: 'Musiker og kunstner fra Arkhangelsk med lang tilknytning til Karlsøya. Prosjektet home . between the lines.' },
   peacechoir: { n: 'Karlsøy Peacechoir', k: 'musikk', b: 'Koret vi lager sammen under festivalen. Ingen forkunnskaper trengs. Støttet av Frifond.' },
   blix: { n: 'Elind Rui Blix', k: 'kunst', b: 'Maler. Utstillingen Understrøm ble til under tre ukers kunstneropphold på øya.' },
-  tobasi: { n: 'Ahmed Tobasi', k: 'kunst', b: 'Teaterkunstner fra Sharara Theatre i Tulkarem på Vestbredden i Palestina. Workshopen Between Here and There.' },
+  sharara: { n: 'Sharara Theatre', k: 'kunst', b: 'Palestinsk samfunnsteater i Tulkarem, med forestillinger, workshops og teaterprogrammer for barn og unge. Med i programmet 2026.' },
+  tobasi: { n: 'Ahmed Tobasi', k: 'kunst', b: 'Palestinsk teaterregissør og skuespiller som står bak The Freedom Theatre i Jenin. Har vært på festivalen i flere år med forestillinger, foredrag og workshops.' },
   peacepainting: { n: 'Peacepainting', k: 'workshop', b: 'Ideell organisasjon som bruker kunst som verktøy for likeverd og fred.' }
 };
 
@@ -185,16 +186,16 @@ DATA.people = {
 const pid = (day, title) => DATA.program.find(p => p.day === day && p.title.startsWith(title)).id;
 
 DATA.items = [
-  { id: 'urfolk-video', type: 'video', title: 'Opptak: Urfolks rettigheter. Maya- og samisk motstand', who: 'ellamarie', date: '08.08.26', lic: 'CC BY-NC-ND', img: 'gruppemoter', mock: true, post: pid(4, 'Urfolks rettigheter'),
+  { id: 'urfolk-video', type: 'video', title: 'Opptak: Urfolks rettigheter. Maya- og samisk motstand', who: 'ellamarie', date: '08.08.26', lic: 'CC BY-NC-ND', img: 'gruppemoter', mock: true, post: pid(4, 'Urfolks rettigheter'), loc: { v: 'zap' },
     body: ['Samtalen ble strømmet fra Zapatista bar og ligger her som opptak. Eksempel: det finnes ikke noe ekte opptak i prototypen.'] },
   { id: 'urfolk-presse', type: 'presse', title: 'Avisoppslag: Urfolkskamp på tvers av kontinenter', by: 'Lokalavisa', date: '12.08.26', lic: 'Lenke til avisa', img: 'plassen', mock: true, post: pid(4, 'Urfolks rettigheter'),
     body: ['Noen dager etter festivalen skriver lokalavisa om samtalen. Oppslaget legges inn som lenke med ingress, og havner i samme forløp som samtalen og opptaket. Eksempel.'] },
-  { id: 'kor-lyd', type: 'lyd', title: 'Lydopptak: Peacechoir på Storscenen', who: 'peacechoir', date: '08.08.26', lic: 'CC BY-NC', img: 'storscenen', mock: true, post: pid(4, 'Peacechoir – konsert'),
+  { id: 'kor-lyd', type: 'lyd', title: 'Lydopptak: Peacechoir på Storscenen', who: 'peacechoir', date: '08.08.26', lic: 'CC BY-NC', img: 'storscenen', mock: true, post: pid(4, 'Peacechoir – konsert'), loc: { v: 'stor' },
     body: ['Koret øvde tre ettermiddager i kirka og sang på Storscenen lørdag. Eksempel på et lydopptak. Lyd er nyttig på svakt nett.'] },
-  { id: 'bilder26', type: 'bilder', title: 'Bilder fra festivalen', by: 'Karlsøyfestivalen', date: '2026', lic: 'Lisens ikke satt', img: 'i-ring',
+  { id: 'bilder26', type: 'bilder', title: 'Bilder fra festivalen', by: 'Karlsøyfestivalen', date: '2026', lic: 'Lisens ikke satt', img: 'i-ring', loc: { v: 'plass' },
     gallery: ['i-ring', 'storscenen', 'plassen', 'mat', 'gruppemoter', 'nedrigg', 'villsau', 'hb-langbord', 'hb-tommerstokk'],
     body: ['Bildene er hentet fra dagens nettside. Fotograf og lisens mangler på alle. I den nye løsningen er begge deler obligatoriske felt.'] },
-  { id: 'omsorg', type: 'artikkel', title: 'Å ta vare på hverandre', by: 'Karlsøyfestivalen', date: '2026', lic: 'CC BY-NC-ND', img: 'hb-telt',
+  { id: 'omsorg', type: 'artikkel', title: 'Å ta vare på hverandre', by: 'Karlsøyfestivalen', date: '2026', lic: 'CC BY-NC-ND', img: 'hb-telt', loc: { v: 'hagen' },
     body: ['Nytt i 2026: trygt rom-workshop i starten av festivalen, en hvilerom-lavvo ved felleshagen, omsorgsverter og et daglig omsorgs- og trygghetsteam.',
       'Dagens kontaktpersoner blir slått opp i Deltakerhuben. I den nye løsningen vises de også på forsiden din når du er logget inn.'] },
   { id: 'deltaker', type: 'artikkel', title: 'Slik fungerer deltakerfestivalen', by: 'Karlsøyfestivalen', date: '2026', lic: 'CC BY-NC-ND', img: 'gruppemoter',
@@ -205,6 +206,10 @@ DATA.items = [
     body: ['Fra 1970-tallet ble Karlsøya et hjem for unge kunstnere, aktivister og folk som lette etter andre måter å leve på.',
       'Festivalen startet i 2000 og førte tradisjonen videre som en protestfestival mot rasisme, miljøødeleggelser, kolonialisme og profittlogikk.',
       'I dag er den et helårlig nettverk. Festivalen har bevisst blitt mindre: fra over tusen besøkende til en samling på noen hundre som skaper opplevelsen sammen.'] },
+  { id: 'teateret-tulkarem', type: 'artikkel', title: 'Fra Karlsøya til Tulkarem: historien om Sharara Theatre', who: 'sharara', date: '2026', lic: 'Settes av bidragsyteren', img: 'gruppemoter', mock: true, loc: { away: 'tulkarem' },
+    body: ['Etter besøket på Karlsøya i 2024 satte det i gang en kjedereaksjon. Sammen med flere andre pusset teaterfolk i Tulkarem opp et lokale, og i 2025 startet de Sharara Theatre, et samfunnsteater med forestillinger, workshops og en sommerskole i teater for barn. Alt på dugnad.', 'Eksempel på en tekst festivalen lager på sine egne sider, for eksempel et intervju etter høstmøtet.', 'Teksten lages sammen med folkene i Sharara, med deres egne ord, navn og lisens. Verket handler om et sted utenfor Karlsøya, og vises derfor med navn og koordinater i stedet for på kartet over øya.'] },
+  { id: 'hostmote-tulkarem', type: 'video', title: 'Sharara Theatre på høstmøtet', who: 'sharara', date: 'November 2026', lic: 'Settes av bidragsyteren', img: 'hb-huset', mock: true, loc: { v: 'zap' },
+    body: ['På høstmøtet fortalte Sharara Theatre historien om teateret fra starten, om fellesskapet og programmene, og om nettsiden og appen. Etterpå ble det spørsmål og samtaler.', 'Eksempel på et opptak fra et av de fysiske møtene på øya. Teksten bygger på Shararas egen omtale. Det er ikke noe ekte opptak i prototypen.'] },
   { id: 'manifest', type: 'tekst', title: 'Karlsøyfestivalens manifest', by: 'Karlsøyfestivalen', date: '2000', lic: 'CC BY-NC-ND', img: 'i-ring',
     body: ['Karlsøyfestivalen er ei markering av motstand mot et samfunn der de viktigste verdiene er lønnsomhet, konkurranse og grådighet. Den er en protest mot raseringen av distriktene, miljøødeleggelsene, rasisme og diskriminering. Den protesterer mot kolonialismen, utbyttinga og den brutale undertrykkinga av verdens folk.',
       'Karlsøyfestivalen er en fest for og ei feiring av alle positive motkrefter! Den skal gjenspeile, gjenskape og fremme alle de alternative kreftene som kjemper for en annen og bedre verden preget av solidaritet, medfølelse og kjærlighet!'] }
@@ -275,12 +280,15 @@ DATA.threads = [
       { when: 'Festivaluka', t: 'Alle på programmet møter i gruppa Program og teknikk hver dag' }
     ] },
   { id: 'tobasi-tulkarem', kind: 'tema', title: 'Tobasi på Karlsøyfestivalen', img: 'gruppemoter',
-    lead: 'En rød tråd over flere år: Ahmed Tobasis prosjekter på Karlsøya og historien om teateret i Tulkarem på Vestbredden i Palestina.',
+    lead: 'En rød tråd over flere år, fortalt med det festivalen selv har laget: Ahmed Tobasis forestillinger og foredrag på Karlsøya, besøket fra Tulkarem i 2024, og Sharara Theatre som kom til høstmøtet på øya i 2026.',
     steps: [
-      { when: 'Tidligere år', t: 'Tobasis prosjekter på Karlsøyfestivalen', note: 'Hentes fra festivalarkivet: program, bilder og omtale.', ex: true },
-      { when: 'Tulkarem', t: 'Historien om teateret', note: 'Tekst, bilder og opptak om teateret i Tulkarem på Vestbredden i Palestina, med kreditering og lisens.', ex: true },
+      { when: 'Tidligere år', t: 'Tobasi og The Freedom Theatre på Karlsøyfestivalen', note: 'Forestillinger, foredrag og workshops over flere år. Hentes fra festivalarkivet: program, bilder og omtale.', ex: true },
+      { when: 'Festivalen 2024', t: 'Besøk fra Tulkarem', note: 'Tobasi har med seg to eller tre teaterfolk fra Tulkarem til øya. En av dem blir sterkt inspirert av festivalen.', ex: true },
       { post: pid(2, 'Between Here and There') },
-      { when: 'Neste år', t: 'Tråden fortsetter', note: 'Nye programposter og verk legges til temaet når de kommer.', ex: true }
+      { post: pid(3, 'Art, Technology') },
+      { item: 'hostmote-tulkarem' },
+      { item: 'teateret-tulkarem' },
+      { when: 'Neste år', t: 'Tråden fortsetter', note: 'Nye programposter, opptak og verk legges til temaet når de kommer.', ex: true }
     ] },
   { id: 'kom-i-gang', kind: 'tema', title: 'Ny på Karlsøyfestivalen?', img: 'i-ring',
     lead: 'Tre ting å lese før du kommer.',

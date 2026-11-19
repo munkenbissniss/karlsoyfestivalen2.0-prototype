@@ -15,8 +15,8 @@ const STATE = Object.assign(
 );
 function loadState() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; } }
 function saveState() {
-  const { lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq, mailState, sentMail, myEvents } = STATE;
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq, mailState, sentMail, myEvents })); } catch (e) { /* privat modus */ }
+  const { lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq, mailState, sentMail, myEvents, tk } = STATE;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ lang, persona, when, fav, taken, group, checks, hidden, sent, read, tasks, receipts, member, houseReq, mailState, sentMail, myEvents, tk })); } catch (e) { /* privat modus */ }
 }
 if (!STATE.tasks) STATE.tasks = JSON.parse(JSON.stringify(DATA.tasks));
 if (!STATE.receipts) STATE.receipts = JSON.parse(JSON.stringify(DATA.receipts));
@@ -117,7 +117,7 @@ function outsideShell(r) {
   const pages = {
     '': pHome, program: r.b === 'dag' ? pDay : r.b === 'alle' ? pAll : r.b ? pPost : pHappens,
     bidragsytere: r.b ? pPerson : pPeople, historier: r.b ? pThread : pStories, tema: pThread, innhold: pItem,
-    nytt: r.b ? pBlogPost : pBlog, handbok: r.b === 'gruppe' ? pGroup : r.b ? pChapter : pHandbook,
+    nytt: r.b ? pBlogPost : pBlog, handbok: r.b === 'gruppe' ? pGroup : r.b === 'kart' ? pMap : r.b ? pChapter : pHandbook,
     praktisk: pPractical, live: pLive, om: pAbout,
     arkiv: F2 ? pArchive : pHome, verktoykasse: F2 ? pToolkit : pHome, huset: F2 ? pHouse : pHome, 'bli-medlem': F2 ? pJoin : pHome
   };
@@ -330,7 +330,7 @@ function pPost(r) {
     <h1>${esc(p.title)}</h1>
     <div class="when" style="--c:${c.c}">
       <div><strong>${fmt(dayDate(p.day), { weekday: 'long', day: 'numeric', month: 'long' })}</strong><span>${p.start ? p.start + '–' + p.end : t('allDay')}</span></div>
-      <div><strong>${esc(venue(p.venue))}</strong><span>${esc(DATA.venues[p.venue].d)}</span></div>
+      <div><strong>${spotOf({ v: p.venue }) ? `<a href="#/handbok/kart/${spotOf({ v: p.venue })}">${esc(venue(p.venue))}</a>` : esc(venue(p.venue))}</strong><span>${esc(DATA.venues[p.venue].d)}</span></div>
       ${starBtn(p.id)}
     </div>
     ${p.who ? personBox(p.who) : ''}
@@ -371,7 +371,8 @@ function pStories() {
     <div class="grid grid-4">${DATA.items.filter(i => i.id !== 'manifest').map(itemCard).join('')}</div>
     <h2>${t('venues')}</h2>
     <ul class="venues grid grid-3">${Object.keys(DATA.venues).map(k => { const n = DATA.program.filter(p => p.venue === k).length;
-      return `<li><h3>${esc(DATA.venues[k].n)}</h3><p>${esc(DATA.venues[k].d)}</p>${n ? `<p class="small">${t('nPosts', { n })}</p>` : ''}</li>`; }).join('')}</ul>
+      const sp = spotOf({ v: k });
+      return `<li><h3>${esc(DATA.venues[k].n)}</h3><p>${esc(DATA.venues[k].d)}</p>${n ? `<p class="small">${t('nPosts', { n })}</p>` : ''}${sp ? `<a class="more" href="#/handbok/kart/${sp}">${t('seeOnMap')}</a>` : ''}</li>`; }).join('')}</ul>
   </div>`;
 }
 function pThread(r) {
@@ -412,6 +413,7 @@ function pItem(r) {
       <div><dt>${t('published')}</dt><dd>${esc(w.date)}</dd></div>
       <div><dt>${t('licence')}</dt><dd>${esc(w.lic)}</dd></div>
     </dl>
+    ${workPlace(w)}
     ${ths.map(th => `<section class="story"><h2>${t('partOf')}: ${esc(th.title)}</h2>${stepsList(th)}</section>`).join('')}
   </article>`;
 }
@@ -451,7 +453,7 @@ function pPerson(r) {
     <div class="phead">${portrait(k, 'lg')}<div><p class="kicker"><span class="dot" style="background:${cat(p.k).c}"></span>${L(cat(p.k))}</p><h1>${esc(p.n)}</h1><p class="lead">${esc(p.b)}</p></div></div>
     <p class="small">${t('photoComingLong')}</p>
     ${p.long ? `<p>${esc(p.long)}</p>` : ''}
-    ${p.links && p.links.length ? `<p class="links">${p.links.map(l => `<a class="chiplink" href="#/bidragsytere/${k}">${esc(l)}</a>`).join('')}</p>` : ''}
+    ${p.links && p.links.length ? `<p class="links">${p.links.map(l => typeof l === 'string' ? `<a class="chiplink" href="#/bidragsytere/${k}">${esc(l)}</a>` : `<a class="chiplink" href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a>`).join('')}</p>` : ''}
     ${posts.length ? `<h2>${t('inProgram')}</h2><ul class="plist">${posts.map(x => progItem(x, { prefix: fmt(dayDate(x.day), { weekday: 'long' }) })).join('')}</ul>` : ''}
     ${made.length ? `<h2>${t('madeHere')}</h2><div class="grid grid-2">${made.map(itemCard).join('')}</div>` : ''}
     ${ths.map(th => `<section class="story"><h2>${t('wholeStory')}</h2><p>${esc(th.lead)}</p>${stepsList(th)}</section>`).join('')}
@@ -486,6 +488,7 @@ function pHandbook() {
     </div></div>
     <div class="wrap">
       <p class="note">${t('factsNote')}</p>
+      <a class="map-teaser" href="#/handbok/kart"><span class="mt-img">${areaSVG({ labels: false, interactive: false })}</span><span class="mt-body"><strong>${t('mapTitle')}</strong><span>${t('mapTeaser')}</span><span class="more">${t('mapOpen')}</span></span></a>
       <h2>${t('hbEditions')}</h2>
       <div class="hb-editions">
         <div class="hb-ed"><strong>${t('hbEdOnline')}</strong><p>${t('hbEdOnlineD')}</p></div>
@@ -553,6 +556,7 @@ function pPractical() {
     <p class="note">${t('factsNote')}</p>
     <h2>${t('faq')}</h2>
     <div class="faq">${DATA.faq.map(f => `<details><summary>${esc(f[0])}</summary><p>${facts(f[1])}</p></details>`).join('')}</div>
+    <a class="map-teaser" href="#/handbok/kart"><span class="mt-img">${islandSVG({ labels: false, interactive: false })}</span><span class="mt-body"><strong>${t('mapTitle')}</strong><span>${t('mapTeaser')}</span><span class="more">${t('mapOpen')}</span></span></a>
     <figure class="work-img">${img('hb-ferga', '')}<figcaption>${t('ferryCap')}</figcaption></figure>
   </div>`;
 }
@@ -1139,11 +1143,6 @@ function pArchive() {
   return `<div class="wrap"><h1>${t('archive')} ${f2tag()}</h1><p class="lead narrowtext">${t('archiveLead')}</p>
     <div class="archive">${DATA.archive.map(a => `<a class="arch" href="#/arkiv"><span class="arch-img">${img(a.img, '')}</span><strong>${a.y}</strong><span>${esc(a.t)}${a.n ? ` · ${t('nPosts', { n: a.n })}` : ` · ${t('toBuild')}`}</span></a>`).join('')}</div></div>`;
 }
-function pToolkit() {
-  return `<div class="hb-hero"><div class="wrap"><p class="kicker">${t('toolkit')} ${f2tag()}</p><h1>${t('toolkitTitle')}</h1><p class="lead narrowtext">${t('toolkitLead')}</p></div></div>
-    <div class="wrap"><div class="toolkit">${DATA.toolkit.map((x, i) => `<article class="tk" style="--c:${RAINBOW12[i * 2]}"><span class="tk-n">${i + 1}</span><h2>${esc(x.title)}</h2><p>${esc(x.lead)}</p><button class="btn btn-small" data-act="toast" data-v="${esc(t('sheetDl'))}">${esc(x.sheet)}</button></article>`).join('')}</div>
-    <p class="small">${t('toolkitSrc')}</p></div>`;
-}
 
 /* ====================================================================
    Hendelser
@@ -1186,6 +1185,8 @@ const ACTIONS = {
   mailtake(v) { STATE.mailState[v] = Object.assign({}, STATE.mailState[v], { who: persona().name, status: 'tatt' }); STATE.toast = t('mailTaken'); },
   maildone(v) { STATE.mailState[v] = Object.assign({}, STATE.mailState[v], { status: 'besvart', who: (STATE.mailState[v] || {}).who || persona().name }); STATE.toast = t('mailDone'); },
   try2(v) { if (!mailUser()) { STATE.persona = 'los'; STATE.toast = t('tryAs'); } saveState(); if (location.hash === '#/inn/' + v) render(false); else location.hash = '#/inn/' + v; },
+  mapsel(v) { STATE.mapSel = v; location.hash = v ? '#/handbok/kart/' + v : '#/handbok/kart'; },
+  maplvl(v) { STATE.mapLvl = v; STATE.mapSel = ''; if (location.hash !== '#/handbok/kart') location.hash = '#/handbok/kart'; },
   mail2cal(v) { STATE.newEvent = true; location.hash = '#/inn/kalender'; },
   mail2task(v) { const m = DATA.mails.find(x => x.id === v); STATE.tasks.unshift({ id: 'o' + Date.now(), t: m.subj, role: t('mailFollow'), g: myGroups()[0], to: persona().name, by: persona().name, status: 'ny', due: '–' }); STATE.toast = t('taskFromMail'); },
   calmonth(v) { STATE.calM += +v; if (STATE.calM < 1) { STATE.calM = 12; STATE.calY--; } if (STATE.calM > 12) { STATE.calM = 1; STATE.calY++; } STATE.calDay = 0; },
@@ -1200,6 +1201,7 @@ const ACTIONS = {
     if (i >= 0) STATE.houseReq.splice(i, 1); else { STATE.houseReq.push({ m, d, u: STATE.houseUnit }); STATE.toast = t('houseToast'); }
   }
 };
+Object.assign(ACTIONS, window.TK_ACTIONS || {});
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
   if (!el || el.tagName === 'SELECT' || el.tagName === 'FORM' || el.tagName === 'INPUT') return;
