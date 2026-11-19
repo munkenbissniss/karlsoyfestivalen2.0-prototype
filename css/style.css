@@ -813,3 +813,27 @@ svg.kart.isl .kt-sea, svg.kart.isl .kt-area { font-size: 20px; }
 .tk-tips ul { margin: 0; }
 .tk-printgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12pt; }
 @media print { .noprint { display: none; } .tk-printgrid .tcard { break-inside: avoid; max-width: none; } }
+
+/* Temakort: tåler både kort og lang tekst */
+.themes { align-items: start; }
+.theme { align-items: start; grid-template-columns: 72px minmax(0, 1fr); padding: 12px; gap: 14px; }
+.theme-img img { width: 72px; height: 72px; }
+.theme > span:last-child { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-top: 2px; }
+.theme strong { font-size: 1.05rem; line-height: 1.25; }
+.theme span span { line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Tavla: mindre kort, flere i bredden */
+.tlist { grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 10px; align-items: start; }
+.tlist .tcard { padding: 10px 12px 12px; gap: 6px; border-top-width: 6px; }
+.tlist .tcard h3 { font-size: 1.02rem; line-height: 1.25; }
+.tlist .tc-d { font-size: .85rem; line-height: 1.4; }
+.tlist .tc-meta { font-size: .8rem; gap: 4px 10px; }
+.tlist .tc-meta dt { font-size: .68rem; }
+.tlist .energy { font-size: .78rem; }
+.tlist .tcard .btn { min-height: 38px; padding: 0 14px; font-size: .88rem; }
+@media (min-width: 1000px) { .ishell:has(.tlist) { max-width: 1360px; } }
+@media (min-width: 1000px) { .imain:has(.tlist) { width: min(100% - 48px, 1080px); } .imain:has(.tlist) > p, .imain:has(.tlist) .lead { max-width: 740px; } }
+.tlist .tc-meta { grid-template-columns: 1fr; gap: 3px; }
+.tlist .tc-meta > div { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 6px; }
+.tlist .tc-meta dd { font-weight: 650; min-width: 0; }
+.tlist .tc-meta .gicon { width: 18px; height: 18px; flex: none; }

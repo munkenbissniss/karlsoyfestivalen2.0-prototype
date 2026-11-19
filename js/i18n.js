@@ -66,7 +66,7 @@ const I18N = {
   allStories: ['Alle historier', 'All stories', 'Toutes les histoires', 'Alle verhalen'],
   themes: ['Temaer', 'Themes', 'Thèmes', 'Thema’s'],
   themesLead: ['Innhold samlet rundt en idé, på tvers av år og arrangementer.', 'Content gathered around an idea, across years and events.', 'Des contenus réunis autour d’une idée.', 'Inhoud rond een idee, over jaren en evenementen heen.'],
-  manifest: ['Manifestet', 'The manifesto', 'Le manifeste', 'Het manifest'],
+  manifest: ['Karlsøyfestivalens manifest', 'The Karlsøyfestivalen manifesto', 'Le manifeste de Karlsøyfestivalen', 'Het manifest van Karlsøyfestivalen'],
   newsletter: ['Få nytt fra Karlsøyfestivalen', 'News from Karlsøyfestivalen', 'Des nouvelles du festival', 'Nieuws van Karlsøyfestivalen'],
   newsletterSub: ['Nyhetsbrev fra vår egen server, uten reklame. Du kan melde deg av med ett klikk.', 'A newsletter from our own server, without ads. Unsubscribe with one click.', 'Une lettre sans publicité, depuis notre serveur.', 'Een nieuwsbrief zonder reclame, van onze eigen server.'],
   email: ['E-postadresse', 'Email address', 'Adresse e-mail', 'E-mailadres'],
