@@ -283,7 +283,7 @@ DATA.threads = [
     lead: 'En rød tråd over flere år, fortalt med det festivalen selv har laget: Ahmed Tobasis forestillinger og foredrag på Karlsøya, besøket fra Tulkarem i 2024, og Sharara Theatre som kom til høstmøtet på øya i 2026.',
     steps: [
       { when: 'Tidligere år', t: 'Tobasi og The Freedom Theatre på Karlsøyfestivalen', note: 'Forestillinger, foredrag og workshops over flere år. Hentes fra festivalarkivet: program, bilder og omtale.', ex: true },
-      { when: 'Festivalen 2024', t: 'Besøk fra Tulkarem', note: 'Tobasi har med seg to eller tre teaterfolk fra Tulkarem til øya. En av dem blir sterkt inspirert av festivalen.', ex: true },
+      { when: 'Festivalen 2024', t: 'Besøk fra Tulkarem', ex: true },
       { post: pid(2, 'Between Here and There') },
       { post: pid(3, 'Art, Technology') },
       { item: 'hostmote-tulkarem' },

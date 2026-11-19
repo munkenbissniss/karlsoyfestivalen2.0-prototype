@@ -6,17 +6,19 @@
    med MapLibre og kartfliser fra OpenStreetMap-data på egen server.
    ==================================================================== */
 
-const ISLAND_D = 'M574,658 C558,662 564,663 549,657 C534,651 505,637 483,624 C460,611 439,598 415,579 C391,559 358,520 341,508 C323,495 329,503 311,503 C293,504 254,513 231,511 C209,510 190,494 176,493 C161,491 153,512 147,502 C142,492 142,449 144,432 C146,414 164,414 158,398 C152,381 116,352 108,331 C100,311 113,289 112,274 C110,260 110,259 99,244 C89,229 58,203 50,186 C42,169 47,155 50,143 C53,130 53,119 69,109 C84,99 122,85 144,82 C166,78 181,94 200,89 C220,83 245,56 260,50 C275,44 282,48 293,51 C303,54 313,68 325,70 C338,72 349,55 368,63 C388,70 426,93 442,113 C457,133 446,157 461,182 C476,207 514,248 529,262 C545,277 544,270 555,270 C567,270 586,261 597,260 C608,259 608,254 622,263 C636,271 669,297 681,311 C693,324 686,332 693,342 C701,352 713,365 725,372 C736,379 750,383 764,385 C777,387 792,389 804,385 C817,380 825,366 839,357 C854,349 875,334 891,334 C907,333 924,343 934,354 C944,364 947,382 950,396 C953,411 952,426 950,439 C947,453 947,460 936,478 C924,497 892,525 880,549 C868,573 872,612 862,623 C852,634 836,621 821,615 C806,609 790,591 774,587 C758,582 739,584 723,586 C708,588 695,591 682,600 C668,608 659,626 641,635Z';
+const ISLAND_D = 'M575,636 C568,636 563,637 558,636 C552,635 552,635 542,632 C532,628 509,620 499,615 C488,610 488,610 478,601 C469,593 454,577 441,566 C427,555 414,550 397,535 C381,520 354,487 343,476 C331,465 333,471 329,470 C325,470 323,474 320,474 C318,475 316,476 313,473 C309,471 315,470 300,458 C284,446 245,422 219,403 C193,384 163,354 146,342 C129,329 123,334 117,329 C112,324 113,322 115,314 C116,307 124,294 126,284 C128,273 134,267 125,251 C117,236 85,203 76,192 C68,180 75,186 74,183 C72,180 67,179 65,175 C64,171 67,162 65,159 C63,157 58,158 55,157 C53,155 51,154 50,150 C49,147 48,140 51,137 C54,133 65,133 68,130 C71,126 69,119 70,115 C71,111 71,111 75,108 C79,106 88,102 95,100 C102,99 111,104 117,101 C124,97 123,82 136,80 C148,77 176,85 193,84 C210,83 228,79 238,76 C247,73 248,70 252,67 C256,63 255,60 261,55 C266,51 281,42 287,40 C293,37 293,38 297,41 C301,44 305,53 310,58 C316,63 325,69 332,71 C339,72 345,70 351,68 C357,65 361,60 366,58 C370,56 374,56 379,58 C385,59 392,64 397,69 C402,74 403,82 408,87 C414,92 422,96 429,98 C436,100 444,97 449,98 C454,99 456,101 458,104 C459,108 460,113 459,120 C458,128 452,145 450,151 C449,157 451,155 452,158 C453,161 453,163 457,167 C462,170 471,173 478,179 C485,185 495,193 500,202 C504,212 501,229 504,236 C507,244 510,244 515,248 C520,252 527,258 533,261 C538,264 538,265 547,265 C556,265 578,263 588,261 C598,258 598,251 605,249 C612,247 625,249 631,250 C636,252 636,252 637,259 C638,266 636,286 638,292 C639,298 642,296 645,297 C648,297 651,298 655,297 C660,295 667,287 673,287 C679,288 687,296 690,300 C694,303 695,304 695,309 C696,313 691,323 693,327 C696,331 706,329 709,333 C713,337 711,346 712,349 C713,353 713,354 717,355 C721,356 729,356 734,357 C739,359 739,363 746,364 C754,366 770,365 779,366 C788,367 794,371 800,371 C806,372 808,372 817,368 C825,363 840,349 850,343 C859,338 867,339 873,336 C880,333 884,327 888,325 C892,323 893,324 897,325 C901,327 907,334 912,335 C916,336 921,331 925,331 C929,331 931,323 935,335 C939,346 947,382 949,399 C952,416 949,429 948,438 C947,447 947,445 942,454 C937,462 926,477 917,488 C908,499 894,507 886,522 C878,536 869,565 866,575 C863,586 866,584 868,587 C870,589 876,589 878,591 C880,592 883,594 881,598 C879,602 873,611 868,614 C864,618 857,618 853,616 C848,614 847,607 841,605 C835,602 822,602 817,599 C811,597 813,592 810,588 C806,584 807,582 796,578 C785,574 757,567 745,565 C732,564 733,565 720,569 C708,573 682,583 670,591 C659,598 660,605 652,612 C645,618 633,624 625,628 C617,631 611,633 603,634 C595,636 583,636 575,636Z';
 
 /* Fargene på hjertene følger tegnforklaringen i programheftet 2026. */
 DATA.mapSpots = {
-  /* Karlsøya */
-  kaia:      { lvl: 'island', x: 158, y: 505, kind: 'fac', n: { nb: 'Ferjekaia', en: 'Ferry quay' }, d: { nb: 'Ferja fra Hansnes legger til her. Gratis ferge under festivalen. Herfra er det en kort gåtur til festivalområdet.', en: 'The ferry from Hansnes arrives here. Free ferry during the festival. A short walk to the festival area.' } },
-  galsa:     { lvl: 'island', x: 238, y: 468, kind: 'heart', c: '#E33FC8', venue: 'galsa', sn: { nb: 'Butikken / GÁLSÁ', en: 'Shop / GÁLSÁ' }, n: { nb: 'Butikken og Galleri GÁLSÁ', en: 'The shop and Galleri GÁLSÁ' } },
-  kirka:     { lvl: 'island', x: 300, y: 424, kind: 'fac', venue: 'kirka', n: { nb: 'Kirka', en: 'The church' } },
-  omr:       { lvl: 'island', x: 398, y: 404, kind: 'heart', c: '#E2343B', n: { nb: 'Festivalområdet', en: 'The festival area' }, d: { nb: 'Festivalhuset, scenene, plassen og campen. Trykk for å se kartet over festivalområdet.', en: 'The festival house, the stages, the square and the camp. Tap to see the map of the festival area.' }, go: 'area' },
-  sandvika:  { lvl: 'island', x: 292, y: 118, kind: 'fac', n: { nb: 'Sandvika', en: 'Sandvika' }, d: { nb: 'Strand på nordsida. Turer og etterfest, med oppmøte på festivalplassen.', en: 'Beach on the north side. Walks and after-parties, meeting at the festival square.' } },
-  korsneset: { lvl: 'island', x: 884, y: 432, kind: 'fac', n: { nb: 'Korsneset', en: 'Korsneset' }, d: { nb: 'Neset i øst. Fin tur langs stranda, med utsikt mot Vanna og Ringvassøya.', en: 'The headland to the east. A good walk along the shore.' } },
+  /* Karlsøya (plasseringer etter kartet over øya; festivalområdet, butikken og kirka er omtrentlige) */
+  kaia:      { lvl: 'island', x: 300, y: 482, kind: 'fac', lp: 'l', n: { nb: 'Ferjekaia', en: 'Ferry quay' }, d: { nb: 'Ferja fra Hansnes legger til her, i bygda Karlsøy. Gratis ferge under festivalen. Herfra er det en kort gåtur til festivalområdet.', en: 'The ferry from Hansnes arrives here, in the village of Karlsøy. Free ferry during the festival. A short walk to the festival area.' } },
+  galsa:     { lvl: 'island', x: 340, y: 468, kind: 'heart', c: '#E33FC8', venue: 'galsa', sn: { nb: 'Butikken / GÁLSÁ', en: 'Shop / GÁLSÁ' }, n: { nb: 'Butikken og Galleri GÁLSÁ', en: 'The shop and Galleri GÁLSÁ' } },
+  kirka:     { lvl: 'island', x: 322, y: 430, kind: 'fac', venue: 'kirka', lp: 'l', n: { nb: 'Kirka', en: 'The church' } },
+  omr:       { lvl: 'island', x: 400, y: 432, kind: 'heart', c: '#E2343B', n: { nb: 'Festivalområdet', en: 'The festival area' }, d: { nb: 'Festivalhuset, scenene, plassen og campen. Trykk for å se kartet over festivalområdet.', en: 'The festival house, the stages, the square and the camp. Tap to see the map of the festival area.' }, go: 'area' },
+  sandvika:  { lvl: 'island', x: 700, y: 342, kind: 'fac', n: { nb: 'Sandvika', en: 'Sandvika' }, d: { nb: 'Strand på nordsida. Turer og etterfest, med oppmøte på festivalplassen.', en: 'Beach on the north side. Walks and after-parties, meeting at the festival square.' } },
+  veten:     { lvl: 'island', x: 319, y: 265, kind: 'fac', n: { nb: 'Veten', en: 'Veten' }, d: { nb: 'Toppen på øya, med utsikt over fjordene. Fin tur fra festivalområdet.', en: 'The top of the island, with a view of the fjords. A good walk from the festival area.' } },
+  arvik:     { lvl: 'island', x: 202, y: 106, kind: 'fac', n: { nb: 'Arvik kystfort', en: 'Arvik coastal fort' }, d: { nb: 'Gammelt kystfort på nordvestsida av øya.', en: 'An old coastal fort on the north-west side of the island.' } },
+  kystfort:  { lvl: 'island', x: 836, y: 569, kind: 'fac', n: { nb: 'Karlsøy kystfort', en: 'Karlsøy coastal fort' }, d: { nb: 'Gammelt kystfort helt i sørøst.', en: 'An old coastal fort at the far south-east.' } },
 
   /* Festivalområdet */
   inngang:   { lvl: 'area', x: 330, y: 70, kind: 'fac', n: { nb: 'Inngang', en: 'Entrance' }, d: { nb: 'Her kommer du inn fra veien. Deltakerhuben ligger rett innenfor.', en: 'Where you come in from the road. The Participant Hub is just inside.' } },
@@ -63,18 +65,18 @@ function mapMarker(id, s, opts) {
 /* Karlsøya: øya, sjøen og ferjeleia */
 function islandSVG(opts) {
   const spots = Object.entries(DATA.mapSpots).filter(([, s]) => s.lvl === 'island');
-  return `<svg class="kart isl" viewBox="0 0 1000 708" role="img" aria-label="${esc(t('mapIsland'))}">
+  return `<svg class="kart isl" viewBox="0 0 1000 675" role="img" aria-label="${esc(t('mapIsland'))}">
     <defs><pattern id="kw" width="24" height="10" patternUnits="userSpaceOnUse"><path d="M0 6 Q6 2 12 6 T24 6" fill="none" stroke="#B9D3DB" stroke-width="1.2"/></pattern></defs>
-    <rect width="1000" height="708" fill="#E4EFF2"/><rect width="1000" height="708" fill="url(#kw)" opacity=".55"/>
+    <rect width="1000" height="675" fill="#E4EFF2"/><rect width="1000" height="675" fill="url(#kw)" opacity=".55"/>
     <path d="${ISLAND_D}" fill="#C9DCC0" transform="translate(6,8)" opacity=".5"/>
     <path d="${ISLAND_D}" fill="#EEF0E2" stroke="#6D645C" stroke-width="2.5"/>
-    <path d="M190,470 C260,440 330,420 400,404 C470,390 540,360 600,330" fill="none" stroke="#BDB2AA" stroke-width="3" stroke-dasharray="1 0"/>
-    <path d="M300,140 C320,220 360,300 398,404" fill="none" stroke="#BDB2AA" stroke-width="2.2" stroke-dasharray="6 6"/>
-    <path d="M0,560 C60,540 110,520 150,507" fill="none" stroke="#433B35" stroke-width="2" stroke-dasharray="8 7" opacity=".6"/>
-    <text x="14" y="590" class="kt-sea">${esc(t('ferryFrom'))}</text>
-    <text x="560" y="380" class="kt-area">Lågmyra</text>
-    <text x="620" y="560" class="kt-island">Karlsøya</text>
-    ${opts.sel === 'omr' || !opts.sel ? `<ellipse cx="398" cy="404" rx="56" ry="38" fill="none" stroke="#E2343B" stroke-width="2" stroke-dasharray="4 5"/>` : ''}
+    <path d="M300,482 C330,470 360,452 400,432 C480,400 600,370 700,342" fill="none" stroke="#BDB2AA" stroke-width="2.4" stroke-dasharray="6 6"/>
+    <path d="M400,432 C380,360 350,300 319,265" fill="none" stroke="#BDB2AA" stroke-width="2.4" stroke-dasharray="6 6"/>
+    <path d="M60,675 C150,600 240,520 296,486" fill="none" stroke="#433B35" stroke-width="2" stroke-dasharray="8 7" opacity=".6"/>
+    <text x="70" y="640" class="kt-sea">${esc(t('ferryFrom'))}</text>
+    <text x="490" y="300" class="kt-area" text-anchor="middle">Lågmyra</text>
+    <text x="640" y="470" class="kt-island" text-anchor="middle">Karlsøya</text>
+    ${opts.sel === 'omr' || !opts.sel ? `<ellipse cx="400" cy="432" rx="52" ry="34" fill="none" stroke="#E2343B" stroke-width="2" stroke-dasharray="4 5"/>` : ''}
     ${spots.map(([id, s]) => mapMarker(id, s, opts)).join('')}
     ${compass(930, 90)}</svg>`;
 }
